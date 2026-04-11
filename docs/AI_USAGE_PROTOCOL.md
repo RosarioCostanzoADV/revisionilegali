@@ -183,3 +183,11 @@ Questo protocollo è obbligatorio per:
 Ogni deviazione aumenta il rischio di errori.
 
 ---
+---
+
+## 🧪 Test ambiente
+
+✔ Collegamento Obsidian attivo  
+✔ File sincronizzato con repository  
+✔ Modifiche tracciate via Git  
+
