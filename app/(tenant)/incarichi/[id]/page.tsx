@@ -42,25 +42,40 @@ export default async function IncaricoDetailPage({
 
   if (!profile?.tenant_id) redirect("/dashboard");
 
-  const { data: assignment } = await supabase
-    .from("assignments")
-    .select(`
-      id, year, type, status, notes, created_at,
-      companies ( id, name, fiscal_code, city ),
-      assignment_members ( user_id, user_profiles ( id, full_name, role ) )
-    `)
-    .eq("id", id)
-    .maybeSingle();
+  // Query semplice senza join annidati per evitare problemi con RLS su user_profiles
+  const [{ data: assignment }, { data: members }] = await Promise.all([
+    supabase
+      .from("assignments")
+      .select("id, year, type, status, notes, created_at, company_id")
+      .eq("id", id)
+      .maybeSingle(),
+    supabase
+      .from("assignment_members")
+      .select("user_id")
+      .eq("assignment_id", id),
+  ]);
 
   if (!assignment) redirect("/incarichi");
 
-  const canEdit = ["tenant_owner", "revisor"].includes(profile.role);
-  const company = assignment.companies as { id: string; name: string; fiscal_code: string | null; city: string | null } | null;
-  const members = (assignment.assignment_members ?? []) as Array<{
-    user_id: string;
-    user_profiles: { id: string; full_name: string | null; role: string } | null;
-  }>;
+  // Fetch company separatamente
+  const { data: company } = assignment.company_id
+    ? await supabase
+        .from("companies")
+        .select("id, name, fiscal_code, city")
+        .eq("id", assignment.company_id)
+        .maybeSingle()
+    : { data: null };
 
+  // Fetch profili membri separatamente
+  const memberUserIds = (members ?? []).map((m) => m.user_id);
+  const { data: memberProfiles } = memberUserIds.length
+    ? await supabase
+        .from("user_profiles")
+        .select("id, full_name, role")
+        .in("id", memberUserIds)
+    : { data: [] };
+
+  const canEdit = ["tenant_owner", "revisor"].includes(profile.role);
   const s = STATUS_LABELS[assignment.status] ?? STATUS_LABELS.aperto;
 
   return (
@@ -132,17 +147,17 @@ export default async function IncaricoDetailPage({
       )}
 
       {/* Team */}
-      {members.length > 0 && (
+      {(memberProfiles ?? []).length > 0 && (
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <h2 className="mb-3 text-sm font-semibold text-gray-700">Team assegnato</h2>
           <ul className="space-y-2">
-            {members.map((m) => (
-              <li key={m.user_id} className="flex items-center gap-3 text-sm">
+            {(memberProfiles ?? []).map((p) => (
+              <li key={p.id} className="flex items-center gap-3 text-sm">
                 <span className="h-7 w-7 rounded-full bg-brand-100 flex items-center justify-center text-xs font-medium text-brand-700">
-                  {(m.user_profiles?.full_name ?? "?")[0]?.toUpperCase()}
+                  {(p.full_name ?? "?")[0]?.toUpperCase()}
                 </span>
-                <span className="font-medium text-gray-900">{m.user_profiles?.full_name ?? "—"}</span>
-                <span className="text-gray-400">{ROLE_LABELS[m.user_profiles?.role ?? ""] ?? m.user_profiles?.role}</span>
+                <span className="font-medium text-gray-900">{p.full_name ?? "—"}</span>
+                <span className="text-gray-400">{ROLE_LABELS[p.role] ?? p.role}</span>
               </li>
             ))}
           </ul>
