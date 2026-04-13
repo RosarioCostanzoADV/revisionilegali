@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { AssignmentStatusForm } from "./AssignmentStatusForm";
+import { ModificaIncaricoForm } from "./ModificaIncaricoForm";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +42,6 @@ export default async function IncaricoDetailPage({
 
   if (!profile?.tenant_id) redirect("/dashboard");
 
-  // Query semplice senza join annidati per evitare problemi con RLS su user_profiles
   const [{ data: assignment }, { data: members }] = await Promise.all([
     supabase
       .from("assignments")
@@ -57,7 +56,6 @@ export default async function IncaricoDetailPage({
 
   if (!assignment) redirect("/incarichi");
 
-  // Fetch company separatamente
   const { data: company } = assignment.company_id
     ? await supabase
         .from("companies")
@@ -66,20 +64,26 @@ export default async function IncaricoDetailPage({
         .maybeSingle()
     : { data: null };
 
-  // Fetch profili membri separatamente
   const memberUserIds = (members ?? []).map((m) => m.user_id);
-  const { data: memberProfiles } = memberUserIds.length
-    ? await supabase
-        .from("user_profiles")
-        .select("id, full_name, role")
-        .in("id", memberUserIds)
-    : { data: [] };
+
+  const [{ data: memberProfiles }, { data: allUsers }] = await Promise.all([
+    memberUserIds.length
+      ? supabase.from("user_profiles").select("id, full_name, role").in("id", memberUserIds)
+      : Promise.resolve({ data: [] }),
+    supabase
+      .from("user_profiles")
+      .select("id, full_name, role")
+      .eq("tenant_id", profile.tenant_id)
+      .eq("is_active", true)
+      .order("full_name"),
+  ]);
 
   const canEdit = ["tenant_owner", "revisor"].includes(profile.role);
   const s = STATUS_LABELS[assignment.status] ?? STATUS_LABELS.aperto;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
+      {/* Header */}
       <div>
         <Link href="/incarichi" className="text-sm text-brand-600 hover:text-brand-700">
           ← Tutti gli incarichi
@@ -95,7 +99,7 @@ export default async function IncaricoDetailPage({
         <p className="mt-1 text-sm text-gray-500">{TYPE_LABELS[assignment.type] ?? assignment.type}</p>
       </div>
 
-      {/* Dettagli incarico */}
+      {/* Dettagli */}
       <div className="rounded-lg border border-gray-200 bg-white p-5 space-y-3">
         <h2 className="text-sm font-semibold text-gray-700">Dettagli</h2>
         <dl className="grid gap-3 sm:grid-cols-2 text-sm">
@@ -138,15 +142,7 @@ export default async function IncaricoDetailPage({
         )}
       </div>
 
-      {/* Stato */}
-      {canEdit && (
-        <AssignmentStatusForm
-          assignmentId={id}
-          currentStatus={assignment.status}
-        />
-      )}
-
-      {/* Team */}
+      {/* Team — read-only */}
       {(memberProfiles ?? []).length > 0 && (
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <h2 className="mb-3 text-sm font-semibold text-gray-700">Team assegnato</h2>
@@ -162,6 +158,17 @@ export default async function IncaricoDetailPage({
             ))}
           </ul>
         </div>
+      )}
+
+      {/* Modifica — solo per owner/revisor, azione deliberata */}
+      {canEdit && (
+        <ModificaIncaricoForm
+          assignmentId={id}
+          currentStatus={assignment.status}
+          currentMemberIds={memberUserIds}
+          allUsers={allUsers ?? []}
+          notes={assignment.notes ?? null}
+        />
       )}
     </div>
   );
