@@ -26,13 +26,24 @@ export default async function TenantDetailPage({
   const { id } = await params;
   const admin = createAdminClient();
 
-  const [{ data: tenant }, { data: plans }] = await Promise.all([
-    admin
-      .from("tenants")
-      .select(`*, plans ( * )`)
-      .eq("id", id)
-      .maybeSingle(),
+  const [
+    { data: tenant },
+    { data: plans },
+    { count: assignmentCount },
+    { count: companyCount },
+    { count: paperCount },
+    { count: findingCount },
+    { count: documentCount },
+    { count: importCount },
+  ] = await Promise.all([
+    admin.from("tenants").select(`*, plans ( * )`).eq("id", id).maybeSingle(),
     admin.from("plans").select("*").eq("is_active", true).order("name"),
+    admin.from("assignments").select("id", { count: "exact", head: true }).eq("tenant_id", id),
+    admin.from("companies").select("id", { count: "exact", head: true }).eq("tenant_id", id),
+    admin.from("working_papers").select("id", { count: "exact", head: true }).eq("tenant_id", id),
+    admin.from("findings").select("id", { count: "exact", head: true }).eq("tenant_id", id),
+    admin.from("documents").select("id", { count: "exact", head: true }).eq("tenant_id", id),
+    admin.from("accounting_imports").select("id", { count: "exact", head: true }).eq("tenant_id", id),
   ]);
 
   if (!tenant) notFound();
@@ -92,6 +103,29 @@ export default async function TenantDetailPage({
                 </div>
               ))}
             </dl>
+          </div>
+
+          {/* Utilizzo piattaforma */}
+          <div className="rounded-lg border border-gray-200 bg-white p-5">
+            <h2 className="mb-4 text-sm font-semibold text-gray-700">Utilizzo piattaforma</h2>
+            <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+              {[
+                { label: "Incarichi", value: assignmentCount ?? 0 },
+                { label: "Aziende", value: companyCount ?? 0 },
+                { label: "Utenti", value: users?.length ?? 0 },
+                { label: "Carte", value: paperCount ?? 0 },
+                { label: "Rilievi", value: findingCount ?? 0 },
+                { label: "Documenti", value: documentCount ?? 0 },
+              ].map(({ label, value }) => (
+                <div key={label} className="rounded-md border border-gray-100 bg-gray-50 p-3 text-center">
+                  <p className="text-xs text-gray-500">{label}</p>
+                  <p className="mt-0.5 text-xl font-bold text-gray-900">{value}</p>
+                </div>
+              ))}
+            </div>
+            {(importCount ?? 0) > 0 && (
+              <p className="mt-3 text-xs text-gray-400">{importCount} import contabili caricati</p>
+            )}
           </div>
 
           {/* Utenti */}

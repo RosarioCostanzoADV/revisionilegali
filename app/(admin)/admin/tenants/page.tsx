@@ -12,19 +12,23 @@ const statusLabel: Record<string, { label: string; className: string }> = {
 export default async function TenantsPage() {
   const admin = createAdminClient();
 
-  const { data: tenants } = await admin
-    .from("tenants")
-    .select(`id, name, referent_name, status, plan_id, plan_expires_at, created_at, plans ( name )`)
-    .order("created_at", { ascending: false });
-
-  const { data: profiles } = await admin
-    .from("user_profiles")
-    .select("tenant_id")
-    .not("tenant_id", "is", null);
+  const [{ data: tenants }, { data: profiles }, { data: assignments }] = await Promise.all([
+    admin
+      .from("tenants")
+      .select(`id, name, referent_name, status, plan_id, plan_expires_at, created_at, plans ( name )`)
+      .order("created_at", { ascending: false }),
+    admin.from("user_profiles").select("tenant_id").not("tenant_id", "is", null),
+    admin.from("assignments").select("tenant_id"),
+  ]);
 
   const userCountMap: Record<string, number> = {};
   for (const p of profiles ?? []) {
     if (p.tenant_id) userCountMap[p.tenant_id] = (userCountMap[p.tenant_id] ?? 0) + 1;
+  }
+
+  const assignmentCountMap: Record<string, number> = {};
+  for (const a of assignments ?? []) {
+    if (a.tenant_id) assignmentCountMap[a.tenant_id] = (assignmentCountMap[a.tenant_id] ?? 0) + 1;
   }
 
   return (
@@ -59,7 +63,7 @@ export default async function TenantsPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                {["Studio", "Referente", "Piano", "Utenti", "Stato", "Scadenza", ""].map((h) => (
+                {["Studio", "Referente", "Piano", "Utenti", "Incarichi", "Stato", "Scadenza", ""].map((h) => (
                   <th
                     key={h}
                     className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500"
@@ -82,6 +86,7 @@ export default async function TenantsPage() {
                     <td className="px-4 py-3 text-sm text-gray-600">{t.referent_name ?? "—"}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{plan}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{userCountMap[t.id] ?? 0}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{assignmentCountMap[t.id] ?? 0}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${s.className}`}>
                         {s.label}
