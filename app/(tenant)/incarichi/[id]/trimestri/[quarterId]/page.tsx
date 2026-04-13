@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { QuarterStatusForm } from "./QuarterStatusForm";
 import { DocumentiSection } from "./DocumentiSection";
+import { CarteSection } from "./CarteSection";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,12 @@ export default async function QuarterDetailPage({
 
   if (!profile?.tenant_id) redirect("/dashboard");
 
-  const [{ data: quarter }, { data: assignment }, { data: documents }] = await Promise.all([
+  const [
+    { data: quarter },
+    { data: assignment },
+    { data: documents },
+    { data: papers },
+  ] = await Promise.all([
     supabase
       .from("quarters")
       .select("id, quarter, status, notes, closed_at, assignment_id")
@@ -59,29 +65,31 @@ export default async function QuarterDetailPage({
       .select("id, name, file_path, file_size, mime_type, category, notes, created_at, uploaded_by")
       .eq("quarter_id", quarterId)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("working_papers")
+      .select("id, title, area, status, prepared_by, created_at")
+      .eq("quarter_id", quarterId)
+      .order("created_at", { ascending: true }),
   ]);
 
   if (!quarter || !assignment) redirect(`/incarichi/${assignmentId}`);
 
   const { data: company } = assignment.company_id
-    ? await supabase
-        .from("companies")
-        .select("id, name")
-        .eq("id", assignment.company_id)
-        .maybeSingle()
+    ? await supabase.from("companies").select("id, name").eq("id", assignment.company_id).maybeSingle()
     : { data: null };
 
-  // Recupera nomi uploader per i documenti
+  // Nomi uploader documenti
   const uploaderIds = [...new Set((documents ?? []).map((d) => d.uploaded_by))];
-  const { data: uploaderProfiles } = uploaderIds.length
-    ? await supabase
-        .from("user_profiles")
-        .select("id, full_name")
-        .in("id", uploaderIds)
+  // Nomi preparer carte
+  const preparerIds = [...new Set((papers ?? []).map((p) => p.prepared_by))];
+  const allUserIds = [...new Set([...uploaderIds, ...preparerIds])];
+
+  const { data: userProfiles } = allUserIds.length
+    ? await supabase.from("user_profiles").select("id, full_name").in("id", allUserIds)
     : { data: [] };
 
-  const uploaderNames: Record<string, string> = Object.fromEntries(
-    (uploaderProfiles ?? []).map((p) => [p.id, p.full_name ?? "—"]),
+  const userNames: Record<string, string> = Object.fromEntries(
+    (userProfiles ?? []).map((p) => [p.id, p.full_name ?? "—"]),
   );
 
   const canEdit = ["tenant_owner", "revisor"].includes(profile.role);
@@ -114,7 +122,7 @@ export default async function QuarterDetailPage({
         </p>
       </div>
 
-      {/* Stato e note — solo per owner/revisor */}
+      {/* Stato e note */}
       {canEdit && (
         <QuarterStatusForm
           quarterId={quarterId}
@@ -122,8 +130,6 @@ export default async function QuarterDetailPage({
           currentNotes={quarter.notes ?? ""}
         />
       )}
-
-      {/* Note read-only per collaboratori/sindaci */}
       {!canEdit && quarter.notes && (
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <h2 className="mb-2 text-sm font-semibold text-gray-700">Note</h2>
@@ -131,11 +137,19 @@ export default async function QuarterDetailPage({
         </div>
       )}
 
+      {/* Carte di lavoro */}
+      <CarteSection
+        quarterId={quarterId}
+        assignmentId={assignmentId}
+        initialPapers={papers ?? []}
+        preparerNames={userNames}
+      />
+
       {/* Documenti */}
       <DocumentiSection
         quarterId={quarterId}
         initialDocuments={documents ?? []}
-        uploaderNames={uploaderNames}
+        uploaderNames={userNames}
         canUpload={true}
         currentUserId={user.id}
         isOwnerOrRevisor={canEdit}
