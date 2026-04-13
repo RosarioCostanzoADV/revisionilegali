@@ -59,6 +59,9 @@ export default async function PianoPage() {
           <span className="border-b-2 border-brand-600 pb-1 font-medium text-brand-600">
             Piano e utilizzo
           </span>
+          <Link href="/settings/utenti" className="pb-1 text-gray-500 hover:text-gray-700">
+            Utenti
+          </Link>
         </div>
       </div>
 
