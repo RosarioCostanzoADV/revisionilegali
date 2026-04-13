@@ -16,7 +16,7 @@ const STATIC_OR_API_PREFIXES = [
   "/favicon",
   "/images",
   "/assets",
-  "/api/auth/callback",
+  "/api/",
 ];
 
 function isPublicPath(pathname: string) {
