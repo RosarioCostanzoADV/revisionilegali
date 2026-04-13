@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { QuarterStatusForm } from "./QuarterStatusForm";
 import { DocumentiSection } from "./DocumentiSection";
 import { CarteSection } from "./CarteSection";
+import { RilieviSection } from "./RilieviSection";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,7 @@ export default async function QuarterDetailPage({
     { data: assignment },
     { data: documents },
     { data: papers },
+    { data: findings },
   ] = await Promise.all([
     supabase
       .from("quarters")
@@ -70,6 +72,11 @@ export default async function QuarterDetailPage({
       .select("id, title, area, status, prepared_by, created_at")
       .eq("quarter_id", quarterId)
       .order("created_at", { ascending: true }),
+    supabase
+      .from("findings")
+      .select("id, title, severity, status, raised_by, due_date, created_at")
+      .eq("quarter_id", quarterId)
+      .order("created_at", { ascending: true }),
   ]);
 
   if (!quarter || !assignment) redirect(`/incarichi/${assignmentId}`);
@@ -82,7 +89,8 @@ export default async function QuarterDetailPage({
   const uploaderIds = [...new Set((documents ?? []).map((d) => d.uploaded_by))];
   // Nomi preparer carte
   const preparerIds = [...new Set((papers ?? []).map((p) => p.prepared_by))];
-  const allUserIds = [...new Set([...uploaderIds, ...preparerIds])];
+  const raisedByIds = [...new Set((findings ?? []).map((f) => f.raised_by))];
+  const allUserIds = [...new Set([...uploaderIds, ...preparerIds, ...raisedByIds])];
 
   const { data: userProfiles } = allUserIds.length
     ? await supabase.from("user_profiles").select("id, full_name").in("id", allUserIds)
@@ -143,6 +151,14 @@ export default async function QuarterDetailPage({
         assignmentId={assignmentId}
         initialPapers={papers ?? []}
         preparerNames={userNames}
+      />
+
+      {/* Rilievi */}
+      <RilieviSection
+        quarterId={quarterId}
+        assignmentId={assignmentId}
+        initialFindings={findings ?? []}
+        raisedByNames={userNames}
       />
 
       {/* Documenti */}
