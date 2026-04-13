@@ -20,8 +20,9 @@ async function requireSuperAdmin() {
 // ── GET /api/admin/tenants/[id] ───────────────────────────────────────────────
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   const user = await requireSuperAdmin();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -30,7 +31,7 @@ export async function GET(
   const { data: tenant, error } = await admin
     .from("tenants")
     .select(`*, plans ( * )`)
-    .eq("id", params.id)
+    .eq("id", id)
     .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -39,7 +40,7 @@ export async function GET(
   const { data: users } = await admin
     .from("user_profiles")
     .select("id, role, full_name, is_active, created_at")
-    .eq("tenant_id", params.id)
+    .eq("tenant_id", id)
     .order("created_at");
 
   return NextResponse.json({ ...tenant, users: users ?? [] });
@@ -57,8 +58,9 @@ const patchSchema = z.object({
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   const user = await requireSuperAdmin();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -72,7 +74,7 @@ export async function PATCH(
   const { data, error } = await admin
     .from("tenants")
     .update({ ...parsed.data, updated_at: new Date().toISOString() })
-    .eq("id", params.id)
+    .eq("id", id)
     .select()
     .single();
 
