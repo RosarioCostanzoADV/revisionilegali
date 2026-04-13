@@ -48,6 +48,9 @@ export default async function TenantLayout({
             <Link href="/dashboard" className="text-gray-500 hover:text-gray-900">
               Dashboard
             </Link>
+            <Link href="/aziende" className="text-gray-500 hover:text-gray-900">
+              Aziende
+            </Link>
             <Link href="/settings" className="text-gray-500 hover:text-gray-900">
               Impostazioni
             </Link>
