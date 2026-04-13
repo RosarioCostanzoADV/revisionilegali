@@ -47,7 +47,7 @@ export function NuovoUtenteForm({ onDone }: { onDone: () => void }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-gray-200 bg-white p-5">
       <h3 className="text-sm font-semibold text-gray-700">Aggiungi utente</h3>
-      {error && <Alert variant="error">{error}</Alert>}
+      {error && <Alert tone="error">{error}</Alert>}
       <div className="grid gap-3 sm:grid-cols-2">
         <Input label="Nome completo *" name="full_name" required />
         <Input label="Email *" name="email" type="email" required />

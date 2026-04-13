@@ -113,7 +113,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: tenant } = await supabase
     .from("tenants")
-    .select("id, status, onboarding_completed")
+    .select("id, status, onboarding_completed, plan_expires_at")
     .eq("id", profile.tenant_id)
     .maybeSingle();
 
@@ -130,6 +130,19 @@ export async function middleware(request: NextRequest) {
     if (!isSuspendedPage) {
       const url = request.nextUrl.clone();
       url.pathname = "/account-sospeso";
+      return NextResponse.redirect(url);
+    }
+    return response();
+  }
+
+  // 7b. Expired plan → /account-sospeso?motivo=piano_scaduto
+  const planExpired =
+    tenant.plan_expires_at && new Date(tenant.plan_expires_at) < new Date();
+  if (planExpired) {
+    if (!isSuspendedPage) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/account-sospeso";
+      url.searchParams.set("motivo", "piano_scaduto");
       return NextResponse.redirect(url);
     }
     return response();
