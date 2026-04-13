@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +69,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: updated, error: updateError } = await supabase
+  const adminClient = createAdminClient();
+  const { data: updated, error: updateError } = await adminClient
     .from("tenants")
     .update({
       name: parsed.data.name,
