@@ -31,7 +31,7 @@ export default async function TenantsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tenant</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Studi</h1>
           <p className="mt-1 text-sm text-gray-500">
             {tenants?.length ?? 0} studio{(tenants?.length ?? 0) !== 1 ? "i" : ""} registrato{(tenants?.length ?? 0) !== 1 ? "i" : ""}
           </p>

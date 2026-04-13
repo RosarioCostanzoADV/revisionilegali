@@ -28,7 +28,7 @@ export default async function AdminHomePage() {
         </p>
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Stat label="Tenant totali" value={tenantCount ?? 0} />
+        <Stat label="Studi totali" value={tenantCount ?? 0} />
         <Stat label="Utenti totali" value={userCount ?? 0} />
         <Stat label="Piani attivi" value={planCount ?? 0} />
       </div>
