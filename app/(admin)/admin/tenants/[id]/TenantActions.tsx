@@ -42,8 +42,8 @@ export function TenantActions({ tenantId, currentStatus, currentPlanId, plans }:
 
   return (
     <div className="space-y-4">
-      {error && <Alert variant="error">{error}</Alert>}
-      {success && <Alert variant="success">{success}</Alert>}
+      {error && <Alert tone="error">{error}</Alert>}
+      {success && <Alert tone="success">{success}</Alert>}
 
       {/* Stato */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">

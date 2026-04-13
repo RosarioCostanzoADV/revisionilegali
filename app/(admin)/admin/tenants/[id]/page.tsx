@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { TenantActions } from "./TenantActions";
+import { CreaUtenteForm } from "./CreaUtenteForm";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +56,7 @@ export default async function TenantDetailPage({
     .order("created_at");
 
   const plan = (tenant.plans as Record<string, unknown> | null);
-  const s = statusLabel[tenant.status] ?? statusLabel.active;
+  const s = statusLabel[tenant.status] ?? statusLabel.active!;
 
   return (
     <div className="space-y-6">
@@ -130,13 +131,15 @@ export default async function TenantDetailPage({
 
           {/* Utenti */}
           <div className="rounded-lg border border-gray-200 bg-white p-5">
-            <h2 className="mb-4 text-sm font-semibold text-gray-700">
-              Utenti ({users?.length ?? 0})
-            </h2>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-gray-700">
+                Utenti ({users?.length ?? 0})
+              </h2>
+            </div>
             {!users?.length ? (
-              <p className="text-sm text-gray-400">Nessun utente ancora.</p>
+              <p className="mb-4 text-sm text-gray-400">Nessun utente ancora.</p>
             ) : (
-              <table className="min-w-full text-sm">
+              <table className="min-w-full text-sm mb-4">
                 <thead>
                   <tr className="border-b border-gray-100">
                     {["Nome", "Ruolo", "Stato"].map((h) => (
@@ -161,6 +164,7 @@ export default async function TenantDetailPage({
                 </tbody>
               </table>
             )}
+            <CreaUtenteForm tenantId={id} />
           </div>
         </div>
 
