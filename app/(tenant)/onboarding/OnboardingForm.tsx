@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Alert } from "@/components/ui/Alert";
@@ -24,7 +23,6 @@ const TIMEZONES = [
 ];
 
 export function OnboardingForm({ initial }: { initial: OnboardingInitial }) {
-  const router = useRouter();
   const [form, setForm] = useState(initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,8 +67,7 @@ export function OnboardingForm({ initial }: { initial: OnboardingInitial }) {
       return;
     }
 
-    router.push("/dashboard");
-    router.refresh();
+    window.location.href = "/dashboard";
   }
 
   return (
