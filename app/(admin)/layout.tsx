@@ -38,10 +38,10 @@ export default async function AdminLayout({
             </Link>
             <nav className="flex gap-3 text-sm text-gray-300">
               <Link href="/admin" className="hover:text-white">
-                Overview
+                Panoramica
               </Link>
               <Link href="/admin/tenants" className="hover:text-white">
-                Tenant
+                Studi
               </Link>
               <Link href="/admin/plans" className="hover:text-white">
                 Piani
