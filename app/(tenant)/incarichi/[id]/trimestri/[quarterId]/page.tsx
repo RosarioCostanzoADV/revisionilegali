@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { QuarterStatusForm } from "./QuarterStatusForm";
+import { DocumentiSection } from "./DocumentiSection";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,7 @@ export default async function QuarterDetailPage({
 
   if (!profile?.tenant_id) redirect("/dashboard");
 
-  const [{ data: quarter }, { data: assignment }] = await Promise.all([
+  const [{ data: quarter }, { data: assignment }, { data: documents }] = await Promise.all([
     supabase
       .from("quarters")
       .select("id, quarter, status, notes, closed_at, assignment_id")
@@ -53,6 +54,11 @@ export default async function QuarterDetailPage({
       .select("id, year, type, company_id")
       .eq("id", assignmentId)
       .maybeSingle(),
+    supabase
+      .from("documents")
+      .select("id, name, file_path, file_size, mime_type, category, notes, created_at, uploaded_by")
+      .eq("quarter_id", quarterId)
+      .order("created_at", { ascending: false }),
   ]);
 
   if (!quarter || !assignment) redirect(`/incarichi/${assignmentId}`);
@@ -64,6 +70,19 @@ export default async function QuarterDetailPage({
         .eq("id", assignment.company_id)
         .maybeSingle()
     : { data: null };
+
+  // Recupera nomi uploader per i documenti
+  const uploaderIds = [...new Set((documents ?? []).map((d) => d.uploaded_by))];
+  const { data: uploaderProfiles } = uploaderIds.length
+    ? await supabase
+        .from("user_profiles")
+        .select("id, full_name")
+        .in("id", uploaderIds)
+    : { data: [] };
+
+  const uploaderNames: Record<string, string> = Object.fromEntries(
+    (uploaderProfiles ?? []).map((p) => [p.id, p.full_name ?? "—"]),
+  );
 
   const canEdit = ["tenant_owner", "revisor"].includes(profile.role);
   const s = STATUS_LABELS[quarter.status] ?? STATUS_LABELS.aperto;
@@ -95,7 +114,7 @@ export default async function QuarterDetailPage({
         </p>
       </div>
 
-      {/* Stato e note */}
+      {/* Stato e note — solo per owner/revisor */}
       {canEdit && (
         <QuarterStatusForm
           quarterId={quarterId}
@@ -104,6 +123,7 @@ export default async function QuarterDetailPage({
         />
       )}
 
+      {/* Note read-only per collaboratori/sindaci */}
       {!canEdit && quarter.notes && (
         <div className="rounded-lg border border-gray-200 bg-white p-5">
           <h2 className="mb-2 text-sm font-semibold text-gray-700">Note</h2>
@@ -111,19 +131,17 @@ export default async function QuarterDetailPage({
         </div>
       )}
 
-      {/* Sezioni future */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-lg border border-dashed border-gray-200 bg-white p-5 text-center">
-          <p className="text-sm font-medium text-gray-500">Documenti</p>
-          <p className="mt-1 text-xs text-gray-400">Disponibile nel prossimo modulo</p>
-        </div>
-        <div className="rounded-lg border border-dashed border-gray-200 bg-white p-5 text-center">
-          <p className="text-sm font-medium text-gray-500">Carte di lavoro</p>
-          <p className="mt-1 text-xs text-gray-400">Disponibile nel prossimo modulo</p>
-        </div>
-      </div>
+      {/* Documenti */}
+      <DocumentiSection
+        quarterId={quarterId}
+        initialDocuments={documents ?? []}
+        uploaderNames={uploaderNames}
+        canUpload={true}
+        currentUserId={user.id}
+        isOwnerOrRevisor={canEdit}
+      />
 
-      {/* Chiusura formale */}
+      {/* Data chiusura formale */}
       {quarter.status === "chiuso" && quarter.closed_at && (
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
           Trimestre chiuso il{" "}
