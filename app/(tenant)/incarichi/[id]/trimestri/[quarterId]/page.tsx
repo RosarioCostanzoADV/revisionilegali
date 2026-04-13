@@ -6,6 +6,7 @@ import { DocumentiSection } from "./DocumentiSection";
 import { CarteSection } from "./CarteSection";
 import { RilieviSection } from "./RilieviSection";
 import { VigilanzaSection } from "./VigilanzaSection";
+import { ImportSection } from "./ImportSection";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,7 @@ export default async function QuarterDetailPage({
     { data: papers },
     { data: findings },
     { data: vigilanzaItems },
+    { data: accountingImports },
   ] = await Promise.all([
     supabase
       .from("quarters")
@@ -85,6 +87,11 @@ export default async function QuarterDetailPage({
       .eq("quarter_id", quarterId)
       .order("sort_order")
       .order("created_at"),
+    supabase
+      .from("accounting_imports")
+      .select("id, filename, period_label, row_count, created_at, uploaded_by")
+      .eq("quarter_id", quarterId)
+      .order("created_at", { ascending: false }),
   ]);
 
   if (!quarter || !assignment) redirect(`/incarichi/${assignmentId}`);
@@ -175,6 +182,15 @@ export default async function QuarterDetailPage({
         assignmentId={assignmentId}
         initialFindings={findings ?? []}
         raisedByNames={userNames}
+      />
+
+      {/* Import contabile */}
+      <ImportSection
+        quarterId={quarterId}
+        assignmentId={assignmentId}
+        initialImports={accountingImports ?? []}
+        uploaderNames={userNames}
+        canUpload={canEdit}
       />
 
       {/* Documenti */}
