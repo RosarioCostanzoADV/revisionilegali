@@ -79,5 +79,12 @@ export async function POST(request: Request) {
     );
   }
 
+  // Auto-create 4 quarters
+  await supabase.from("quarters").insert([1, 2, 3, 4].map((q) => ({
+    assignment_id: data.id,
+    tenant_id: profile.tenant_id,
+    quarter: q,
+  })));
+
   return NextResponse.json({ id: data.id }, { status: 201 });
 }

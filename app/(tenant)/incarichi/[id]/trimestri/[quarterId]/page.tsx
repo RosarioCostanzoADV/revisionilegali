@@ -1,0 +1,139 @@
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { QuarterStatusForm } from "./QuarterStatusForm";
+
+export const dynamic = "force-dynamic";
+
+const QUARTER_LABELS: Record<number, string> = {
+  1: "1° Trimestre",
+  2: "2° Trimestre",
+  3: "3° Trimestre",
+  4: "4° Trimestre",
+};
+
+const STATUS_LABELS: Record<string, { label: string; className: string }> = {
+  aperto: { label: "Aperto", className: "bg-blue-100 text-blue-700" },
+  in_corso: { label: "In corso", className: "bg-yellow-100 text-yellow-700" },
+  chiuso: { label: "Chiuso", className: "bg-gray-100 text-gray-500" },
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  revisione_legale: "Revisione legale",
+  collegio_sindacale: "Collegio sindacale",
+  sindaco_unico: "Sindaco unico",
+};
+
+export default async function QuarterDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string; quarterId: string }>;
+}) {
+  const { id: assignmentId, quarterId } = await params;
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("role, tenant_id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!profile?.tenant_id) redirect("/dashboard");
+
+  const [{ data: quarter }, { data: assignment }] = await Promise.all([
+    supabase
+      .from("quarters")
+      .select("id, quarter, status, notes, closed_at, assignment_id")
+      .eq("id", quarterId)
+      .maybeSingle(),
+    supabase
+      .from("assignments")
+      .select("id, year, type, company_id")
+      .eq("id", assignmentId)
+      .maybeSingle(),
+  ]);
+
+  if (!quarter || !assignment) redirect(`/incarichi/${assignmentId}`);
+
+  const { data: company } = assignment.company_id
+    ? await supabase
+        .from("companies")
+        .select("id, name")
+        .eq("id", assignment.company_id)
+        .maybeSingle()
+    : { data: null };
+
+  const canEdit = ["tenant_owner", "revisor"].includes(profile.role);
+  const s = STATUS_LABELS[quarter.status] ?? STATUS_LABELS.aperto;
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-6">
+      {/* Breadcrumb */}
+      <div>
+        <div className="flex items-center gap-2 text-sm text-gray-400">
+          <Link href="/incarichi" className="hover:text-brand-600">Incarichi</Link>
+          <span>›</span>
+          <Link href={`/incarichi/${assignmentId}`} className="hover:text-brand-600">
+            {company?.name ?? "—"} — {assignment.year}
+          </Link>
+          <span>›</span>
+          <span className="text-gray-600">{QUARTER_LABELS[quarter.quarter]}</span>
+        </div>
+
+        <div className="mt-3 flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-gray-900">
+            {QUARTER_LABELS[quarter.quarter]}
+          </h1>
+          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${s.className}`}>
+            {s.label}
+          </span>
+        </div>
+        <p className="mt-1 text-sm text-gray-500">
+          {company?.name} · {assignment.year} · {TYPE_LABELS[assignment.type] ?? assignment.type}
+        </p>
+      </div>
+
+      {/* Stato e note */}
+      {canEdit && (
+        <QuarterStatusForm
+          quarterId={quarterId}
+          currentStatus={quarter.status}
+          currentNotes={quarter.notes ?? ""}
+        />
+      )}
+
+      {!canEdit && quarter.notes && (
+        <div className="rounded-lg border border-gray-200 bg-white p-5">
+          <h2 className="mb-2 text-sm font-semibold text-gray-700">Note</h2>
+          <p className="text-sm text-gray-700 whitespace-pre-wrap">{quarter.notes}</p>
+        </div>
+      )}
+
+      {/* Sezioni future */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-lg border border-dashed border-gray-200 bg-white p-5 text-center">
+          <p className="text-sm font-medium text-gray-500">Documenti</p>
+          <p className="mt-1 text-xs text-gray-400">Disponibile nel prossimo modulo</p>
+        </div>
+        <div className="rounded-lg border border-dashed border-gray-200 bg-white p-5 text-center">
+          <p className="text-sm font-medium text-gray-500">Carte di lavoro</p>
+          <p className="mt-1 text-xs text-gray-400">Disponibile nel prossimo modulo</p>
+        </div>
+      </div>
+
+      {/* Chiusura formale */}
+      {quarter.status === "chiuso" && quarter.closed_at && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+          Trimestre chiuso il{" "}
+          {new Date(quarter.closed_at).toLocaleDateString("it-IT", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

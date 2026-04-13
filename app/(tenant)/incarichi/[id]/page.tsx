@@ -24,6 +24,13 @@ const ROLE_LABELS: Record<string, string> = {
   syndic: "Sindaco",
 };
 
+const QUARTER_LABELS: Record<number, string> = {
+  1: "1° Trimestre",
+  2: "2° Trimestre",
+  3: "3° Trimestre",
+  4: "4° Trimestre",
+};
+
 export default async function IncaricoDetailPage({
   params,
 }: {
@@ -42,7 +49,7 @@ export default async function IncaricoDetailPage({
 
   if (!profile?.tenant_id) redirect("/dashboard");
 
-  const [{ data: assignment }, { data: members }] = await Promise.all([
+  const [{ data: assignment }, { data: members }, { data: quarters }] = await Promise.all([
     supabase
       .from("assignments")
       .select("id, year, type, status, notes, created_at, company_id")
@@ -52,6 +59,11 @@ export default async function IncaricoDetailPage({
       .from("assignment_members")
       .select("user_id")
       .eq("assignment_id", id),
+    supabase
+      .from("quarters")
+      .select("id, quarter, status")
+      .eq("assignment_id", id)
+      .order("quarter"),
   ]);
 
   if (!assignment) redirect("/incarichi");
@@ -97,6 +109,34 @@ export default async function IncaricoDetailPage({
           </span>
         </div>
         <p className="mt-1 text-sm text-gray-500">{TYPE_LABELS[assignment.type] ?? assignment.type}</p>
+      </div>
+
+      {/* Trimestri */}
+      <div className="rounded-lg border border-gray-200 bg-white p-5">
+        <h2 className="mb-4 text-sm font-semibold text-gray-700">Trimestri</h2>
+        {(quarters ?? []).length === 0 ? (
+          <p className="text-sm text-gray-400">Nessun trimestre disponibile.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {(quarters ?? []).map((q) => {
+              const qs = STATUS_LABELS[q.status] ?? STATUS_LABELS.aperto;
+              return (
+                <Link
+                  key={q.id}
+                  href={`/incarichi/${id}/trimestri/${q.id}`}
+                  className="flex flex-col gap-2 rounded-lg border border-gray-200 p-4 hover:border-brand-300 hover:bg-brand-50 transition-colors"
+                >
+                  <span className="text-sm font-semibold text-gray-900">
+                    {QUARTER_LABELS[q.quarter]}
+                  </span>
+                  <span className={`inline-flex self-start rounded-full px-2 py-0.5 text-xs font-medium ${qs.className}`}>
+                    {qs.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Dettagli */}
@@ -160,7 +200,7 @@ export default async function IncaricoDetailPage({
         </div>
       )}
 
-      {/* Modifica — solo per owner/revisor, azione deliberata */}
+      {/* Modifica — solo per owner/revisor */}
       {canEdit && (
         <ModificaIncaricoForm
           assignmentId={id}
