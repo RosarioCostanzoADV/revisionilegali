@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ModificaIncaricoForm } from "./ModificaIncaricoForm";
+import { BozzeSection } from "./BozzeSection";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ export default async function IncaricoDetailPage({
 
   if (!profile?.tenant_id) redirect("/dashboard");
 
-  const [{ data: assignment }, { data: members }, { data: quarters }] = await Promise.all([
+  const [{ data: assignment }, { data: members }, { data: quarters }, { data: drafts }] = await Promise.all([
     supabase
       .from("assignments")
       .select("id, year, type, status, notes, created_at, company_id")
@@ -64,6 +65,11 @@ export default async function IncaricoDetailPage({
       .select("id, quarter, status")
       .eq("assignment_id", id)
       .order("quarter"),
+    supabase
+      .from("drafts")
+      .select("id, title, type, status, updated_at")
+      .eq("assignment_id", id)
+      .order("updated_at", { ascending: false }),
   ]);
 
   if (!assignment) redirect("/incarichi");
@@ -199,6 +205,13 @@ export default async function IncaricoDetailPage({
           </ul>
         </div>
       )}
+
+      {/* Bozze e verbali */}
+      <BozzeSection
+        assignmentId={id}
+        initialDrafts={drafts ?? []}
+        canCreate={canEdit}
+      />
 
       {/* Modifica — solo per owner/revisor */}
       {canEdit && (
