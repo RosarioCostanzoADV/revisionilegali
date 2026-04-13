@@ -21,15 +21,16 @@ const roleLabel: Record<string, string> = {
 export default async function TenantDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const admin = createAdminClient();
 
   const [{ data: tenant }, { data: plans }] = await Promise.all([
     admin
       .from("tenants")
       .select(`*, plans ( * )`)
-      .eq("id", params.id)
+      .eq("id", id)
       .maybeSingle(),
     admin.from("plans").select("*").eq("is_active", true).order("name"),
   ]);
@@ -39,7 +40,7 @@ export default async function TenantDetailPage({
   const { data: users } = await admin
     .from("user_profiles")
     .select("id, role, full_name, is_active, created_at")
-    .eq("tenant_id", params.id)
+    .eq("tenant_id", id)
     .order("created_at");
 
   const plan = (tenant.plans as Record<string, unknown> | null);
