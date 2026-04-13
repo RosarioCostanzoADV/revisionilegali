@@ -55,6 +55,11 @@ export async function POST(request: Request) {
   }
 
   const { supabase, profile } = ctx;
+
+  if (!["tenant_owner", "revisor"].includes(profile.role)) {
+    return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
+  }
+
   const { data, error } = await supabase
     .from("companies")
     .insert({ ...parsed.data, tenant_id: profile.tenant_id })

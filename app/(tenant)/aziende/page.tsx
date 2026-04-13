@@ -23,6 +23,8 @@ export default async function AziendePage() {
     .select("id, name, fiscal_code, vat_number, sector, city, province, is_archived, created_at")
     .order("name");
 
+  const canCreate = ["tenant_owner", "revisor"].includes(profile.role);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -32,12 +34,14 @@ export default async function AziendePage() {
             Anagrafica dei clienti revisionati.
           </p>
         </div>
-        <Link
-          href="/aziende/nuova"
-          className="inline-flex h-10 items-center rounded-md bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-700"
-        >
-          + Nuova azienda
-        </Link>
+        {canCreate && (
+          <Link
+            href="/aziende/nuova"
+            className="inline-flex h-10 items-center rounded-md bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            + Nuova azienda
+          </Link>
+        )}
       </div>
 
       <AziendeClient initialCompanies={companies ?? []} />
