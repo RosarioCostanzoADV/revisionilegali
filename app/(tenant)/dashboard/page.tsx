@@ -3,6 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
+const ROLE_LABELS: Record<string, string> = {
+  tenant_owner: "Titolare",
+  revisor: "Revisore",
+  collaborator: "Collaboratore",
+  syndic: "Sindaco",
+};
+
 export default async function DashboardPage() {
   const supabase = createClient();
   const {
@@ -45,7 +52,7 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card title="Studio" value={tenant?.name ?? "—"} />
-        <Card title="Ruolo" value={profile?.role ?? "—"} />
+        <Card title="Ruolo" value={ROLE_LABELS[profile?.role ?? ""] ?? profile?.role ?? "—"} />
         <Card title="Piano" value={plan?.name ?? "Non assegnato"} />
       </div>
 
