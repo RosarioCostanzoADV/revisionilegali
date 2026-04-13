@@ -57,7 +57,9 @@ export default async function TenantLayout({
             <Link href="/settings" className="text-gray-500 hover:text-gray-900">
               Impostazioni
             </Link>
-            <span className="text-gray-600">{profile?.full_name ?? user.email}</span>
+            <Link href="/profilo" className="text-gray-600 hover:text-gray-900">
+              {profile?.full_name ?? user.email}
+            </Link>
             <LogoutButton variant="ghost" />
           </nav>
         </div>
