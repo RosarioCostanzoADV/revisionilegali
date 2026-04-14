@@ -117,7 +117,7 @@ export default async function QuarterDetailPage({
   );
 
   const canEdit = ["tenant_owner", "revisor"].includes(profile.role);
-  const s = STATUS_LABELS[quarter.status] ?? STATUS_LABELS.aperto;
+  const s = STATUS_LABELS[quarter.status] ?? STATUS_LABELS.aperto!;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -161,30 +161,7 @@ export default async function QuarterDetailPage({
         </div>
       )}
 
-      {/* Carte di lavoro */}
-      <CarteSection
-        quarterId={quarterId}
-        assignmentId={assignmentId}
-        initialPapers={papers ?? []}
-        preparerNames={userNames}
-      />
-
-      {/* Vigilanza */}
-      <VigilanzaSection
-        quarterId={quarterId}
-        initialItems={vigilanzaItems ?? []}
-        completedByNames={userNames}
-      />
-
-      {/* Rilievi */}
-      <RilieviSection
-        quarterId={quarterId}
-        assignmentId={assignmentId}
-        initialFindings={findings ?? []}
-        raisedByNames={userNames}
-      />
-
-      {/* Import contabile */}
+      {/* Import contabile — prima azione operativa */}
       <ImportSection
         quarterId={quarterId}
         assignmentId={assignmentId}
@@ -193,7 +170,7 @@ export default async function QuarterDetailPage({
         canUpload={canEdit}
       />
 
-      {/* Documenti */}
+      {/* Documenti — raccolta documentazione di supporto */}
       <DocumentiSection
         quarterId={quarterId}
         initialDocuments={documents ?? []}
@@ -201,6 +178,29 @@ export default async function QuarterDetailPage({
         canUpload={true}
         currentUserId={user.id}
         isOwnerOrRevisor={canEdit}
+      />
+
+      {/* Carte di lavoro — analisi per area, alimentata da import e documenti */}
+      <CarteSection
+        quarterId={quarterId}
+        assignmentId={assignmentId}
+        initialPapers={papers ?? []}
+        preparerNames={userNames}
+      />
+
+      {/* Rilievi — emergono durante il lavoro sulle carte */}
+      <RilieviSection
+        quarterId={quarterId}
+        assignmentId={assignmentId}
+        initialFindings={findings ?? []}
+        raisedByNames={userNames}
+      />
+
+      {/* Vigilanza — adempimenti periodici del collegio */}
+      <VigilanzaSection
+        quarterId={quarterId}
+        initialItems={vigilanzaItems ?? []}
+        completedByNames={userNames}
       />
 
       {/* Data chiusura formale */}
