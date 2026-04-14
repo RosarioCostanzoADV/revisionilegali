@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { read as xlsxRead, utils as xlsxUtils } from "xlsx";
 
 export const dynamic = "force-dynamic";
 
@@ -99,56 +100,98 @@ function parseCSV(text: string): ParsedEntry[] {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 2) return [];
 
-  const sep = detectSeparator(lines[0]);
-  const headers = splitCSVRow(lines[0], sep);
+  const sep = detectSeparator(lines[0]!);
+  const headers = splitCSVRow(lines[0]!, sep);
 
-  // Rileva colonne
-  const colCode = findCol(headers, ["codice", "cod conto", "conto", "mastrino", "voce"]);
-  const colName = findCol(headers, ["descrizione", "desc", "denominazione", "ragione"]);
+  const colCode    = findCol(headers, ["codice", "cod conto", "conto", "mastrino", "voce"]);
+  const colName    = findCol(headers, ["descrizione", "desc", "denominazione", "ragione"]);
   const colBalance = findCol(headers, ["saldo finale", "saldo attuale", "saldo corrente", "saldo al", "saldo"]);
-  const colPrev = findCol(headers, ["precedente", "prec", "anno prec", "saldo prec", "esercizio prec"]);
-  const colDare = findCol(headers, ["dare", "debito", "debit"]);
-  const colAvere = findCol(headers, ["avere", "credito", "credit"]);
+  const colPrev    = findCol(headers, ["precedente", "prec", "anno prec", "saldo prec", "esercizio prec"]);
+  const colDare    = findCol(headers, ["dare", "debito", "debit"]);
+  const colAvere   = findCol(headers, ["avere", "credito", "credit"]);
 
-  // Fallback: se non trovato saldo ma ci sono dare/avere, calcolalo
   const useDareAvere = colBalance === -1 && colDare !== -1 && colAvere !== -1;
-
-  // Se non troviamo nemmeno il nome, proviamo a usare la seconda colonna
   const nameCol = colName !== -1 ? colName : (colCode !== -1 ? -1 : 1);
 
   const entries: ParsedEntry[] = [];
-
   for (let i = 1; i < lines.length; i++) {
-    const cells = splitCSVRow(lines[i], sep);
+    const cells = splitCSVRow(lines[i]!, sep);
     if (cells.length < 2) continue;
 
-    const code = colCode !== -1 ? cells[colCode] || null : null;
-    const name = nameCol !== -1 ? cells[nameCol] : (cells[1] ?? "");
+    const code = colCode !== -1 ? (cells[colCode] ?? null) : null;
+    const name = nameCol !== -1 ? (cells[nameCol] ?? "") : (cells[1] ?? "");
     if (!name) continue;
 
     let balance = 0;
     if (useDareAvere) {
-      const dare = parseNumber(cells[colDare] ?? "");
-      const avere = parseNumber(cells[colAvere] ?? "");
-      balance = dare - avere;
+      balance = parseNumber(cells[colDare] ?? "") - parseNumber(cells[colAvere] ?? "");
     } else if (colBalance !== -1) {
       balance = parseNumber(cells[colBalance] ?? "");
     } else {
-      // Prova a usare l'ultima colonna numerica
-      const lastNum = parseNumber(cells[cells.length - 1]);
-      balance = lastNum;
+      balance = parseNumber(cells[cells.length - 1] ?? "");
     }
 
     const prev = colPrev !== -1 ? parseNumber(cells[colPrev] ?? "") : null;
-
     entries.push({
       account_code: code || null,
       account_name: name,
       balance,
-      balance_prev: prev !== 0 ? prev : null,
+      balance_prev: prev !== null && prev !== 0 ? prev : null,
     });
   }
+  return entries;
+}
 
+// Parsing Excel/ODS tramite SheetJS — converte il primo foglio in righe
+function parseSpreadsheet(buffer: ArrayBuffer): ParsedEntry[] {
+  const wb = xlsxRead(buffer, { type: "array" });
+  const sheetName = wb.SheetNames[0];
+  if (!sheetName) return [];
+  const ws = wb.Sheets[sheetName];
+  if (!ws) return [];
+
+  // Converti in matrice di stringhe
+  const rows = xlsxUtils.sheet_to_json<string[]>(ws, { header: 1, defval: "" }) as string[][];
+  if (rows.length < 2) return [];
+
+  // Usa le stesse logiche di findCol
+  const headers = rows[0]!.map((c) => String(c ?? ""));
+  const colCode    = findCol(headers, ["codice", "cod conto", "conto", "mastrino", "voce"]);
+  const colName    = findCol(headers, ["descrizione", "desc", "denominazione", "ragione"]);
+  const colBalance = findCol(headers, ["saldo finale", "saldo attuale", "saldo corrente", "saldo al", "saldo"]);
+  const colPrev    = findCol(headers, ["precedente", "prec", "anno prec", "saldo prec", "esercizio prec"]);
+  const colDare    = findCol(headers, ["dare", "debito", "debit"]);
+  const colAvere   = findCol(headers, ["avere", "credito", "credit"]);
+
+  const useDareAvere = colBalance === -1 && colDare !== -1 && colAvere !== -1;
+  const nameCol = colName !== -1 ? colName : (colCode !== -1 ? -1 : 1);
+
+  const entries: ParsedEntry[] = [];
+  for (let i = 1; i < rows.length; i++) {
+    const cells = rows[i]!.map((c) => String(c ?? ""));
+    if (cells.length < 2) continue;
+
+    const code = colCode !== -1 ? (cells[colCode] ?? null) : null;
+    const name = nameCol !== -1 ? (cells[nameCol] ?? "") : (cells[1] ?? "");
+    if (!name?.trim()) continue;
+
+    let balance = 0;
+    if (useDareAvere) {
+      balance = parseNumber(cells[colDare] ?? "") - parseNumber(cells[colAvere] ?? "");
+    } else if (colBalance !== -1) {
+      balance = parseNumber(cells[colBalance] ?? "");
+    } else {
+      balance = parseNumber(cells[cells.length - 1] ?? "");
+    }
+
+    const prev = colPrev !== -1 ? parseNumber(cells[colPrev] ?? "") : null;
+    entries.push({
+      account_code: String(code || "").trim() || null,
+      account_name: String(name).trim(),
+      balance,
+      balance_prev: prev !== null && prev !== 0 ? prev : null,
+    });
+  }
   return entries;
 }
 
@@ -195,16 +238,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "File e quarter_id obbligatori." }, { status: 400 });
   }
 
-  if (file.size > 5 * 1024 * 1024) {
-    return NextResponse.json({ error: "File troppo grande. Massimo 5 MB." }, { status: 400 });
+  if (file.size > 10 * 1024 * 1024) {
+    return NextResponse.json({ error: "File troppo grande. Massimo 10 MB." }, { status: 400 });
   }
 
-  const text = await file.text();
-  const entries = parseCSV(text);
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const isSpreadsheet = ["xlsx", "xls", "ods"].includes(ext);
+
+  let entries: ParsedEntry[];
+  if (isSpreadsheet) {
+    const buffer = await file.arrayBuffer();
+    entries = parseSpreadsheet(buffer);
+  } else {
+    const text = await file.text();
+    entries = parseCSV(text);
+  }
 
   if (entries.length === 0) {
     return NextResponse.json({
-      error: "Nessuna riga rilevata. Verifica il formato del file CSV (separatore ; o , con intestazione in prima riga).",
+      error: "Nessuna riga rilevata. Verifica che il file contenga una riga di intestazione e almeno una riga di dati.",
     }, { status: 400 });
   }
 

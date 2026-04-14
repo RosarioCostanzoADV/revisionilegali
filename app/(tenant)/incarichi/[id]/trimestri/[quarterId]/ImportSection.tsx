@@ -84,11 +84,11 @@ export function ImportSection({
               name="file"
               type="file"
               required
-              accept=".csv,.txt"
+              accept=".csv,.txt,.xlsx,.xls,.ods"
               className="block w-full text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-brand-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-brand-700 cursor-pointer"
             />
             <p className="mt-1 text-xs text-gray-400">
-              Formato atteso: colonne Codice, Descrizione, Saldo (e opzionalmente Saldo Precedente). Separatore ; o , — max 5 MB
+              Formati supportati: <strong>Excel (.xlsx, .xls)</strong>, ODS, CSV, TXT — colonne: Codice, Descrizione, Saldo (opzionale: Saldo Precedente) — max 10 MB
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
