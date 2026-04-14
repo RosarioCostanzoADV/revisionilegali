@@ -43,6 +43,20 @@ export function BozzeSection({
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function handleDelete(id: string) {
+    if (!confirm("Eliminare questa bozza? L'operazione non è reversibile.")) return;
+    setDeletingId(id);
+    const res = await fetch(`/api/tenant/drafts/${id}`, { method: "DELETE" });
+    setDeletingId(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(typeof data.error === "string" ? data.error : "Errore durante l'eliminazione.");
+      return;
+    }
+    setDrafts((prev) => prev.filter((d) => d.id !== id));
+  }
 
   async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -122,12 +136,12 @@ export function BozzeSection({
       ) : (
         <ul className="divide-y divide-gray-100">
           {drafts.map((d) => {
-            const st = STATUS_STYLES[d.status] ?? STATUS_STYLES.bozza;
+            const st = STATUS_STYLES[d.status] ?? STATUS_STYLES.bozza!;
             return (
-              <li key={d.id} className="py-3">
+              <li key={d.id} className="flex items-center gap-2 py-3">
                 <Link
                   href={`/incarichi/${assignmentId}/bozze/${d.id}`}
-                  className="flex items-center justify-between gap-3 group"
+                  className="flex flex-1 min-w-0 items-center justify-between gap-3 group"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-gray-900 group-hover:text-brand-600 truncate">
@@ -140,10 +154,20 @@ export function BozzeSection({
                       </span>
                     </div>
                   </div>
-                  <span className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${st.className}`}>
-                    {st.label}
+                  <span className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${st!.className}`}>
+                    {st!.label}
                   </span>
                 </Link>
+                {canCreate && d.status !== "definitivo" && (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(d.id)}
+                    disabled={deletingId === d.id}
+                    className="shrink-0 text-xs text-red-400 hover:text-red-600 disabled:opacity-50"
+                  >
+                    {deletingId === d.id ? "..." : "Elimina"}
+                  </button>
+                )}
               </li>
             );
           })}
