@@ -52,10 +52,69 @@ export function AnalisiRischio({
   const [result, setResult] = useState<{ created: number; quarter_id?: string; message?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [generatingRilievi, setGeneratingRilievi] = useState(false);
+  const [rilieviResult, setRilieviResult] = useState<{ created: number; message?: string } | null>(null);
+  const [rilieviError, setRilieviError] = useState<string | null>(null);
+  const [generatingCirc, setGeneratingCirc] = useState(false);
+  const [circResult, setCircResult] = useState<string | null>(null);
 
   const highCount   = areas.filter((a) => a.riskLevel === "high").length;
   const mediumCount = areas.filter((a) => a.riskLevel === "medium").length;
   const lowCount    = areas.filter((a) => a.riskLevel === "low").length;
+
+  const hasCrediti = areas.some(
+    (a) => (a.key === "crediti" || a.key === "altri_crediti") &&
+            (a.riskLevel === "high" || a.riskLevel === "medium"),
+  );
+
+  async function handleGeneraRilievi() {
+    setRilieviError(null);
+    setRilieviResult(null);
+    setGeneratingRilievi(true);
+    const res = await fetch(`/api/tenant/accounting-imports/${importId}/rilievi`, { method: "POST" });
+    const data = await res.json().catch(() => ({}));
+    setGeneratingRilievi(false);
+    if (!res.ok) {
+      setRilieviError(typeof data.error === "string" ? data.error : "Errore durante la generazione.");
+      return;
+    }
+    setRilieviResult(data);
+  }
+
+  async function handleCircolarizzazione() {
+    setGeneratingCirc(true);
+    setCircResult(null);
+    const creditiArea = areas.find((a) => a.key === "crediti");
+    const topAccounts = creditiArea?.topAccounts ?? [];
+    const title = `Lettera di circolarizzazione crediti — ${new Date().getFullYear()}`;
+    const content =
+      `LETTERA DI CIRCOLARIZZAZIONE CREDITI\n` +
+      `(ISA 505 — Conferme esterne)\n\n` +
+      `Spett.le [NOME DEBITORE],\n\n` +
+      `La presente per comunicarVi che la società [NOME SOCIETÀ] è sottoposta a revisione legale dei conti.\n` +
+      `Il revisore incaricato, ai sensi del principio ISA 505, richiede la conferma dei seguenti saldi al [DATA]:\n\n` +
+      (topAccounts.length > 0
+        ? topAccounts
+            .map((a) => `• ${a.account_name}: € ${new Intl.NumberFormat("it-IT", { minimumFractionDigits: 2 }).format(a.balance)}`)
+            .join("\n")
+        : "• [indicare i crediti da circolarizzare]") +
+      `\n\nSi prega di confermare l'esattezza del saldo sopra indicato apponendo la firma e restituendo il presente documento entro [DATA RISPOSTA] al seguente indirizzo: [INDIRIZZO/EMAIL REVISORE].\n\n` +
+      `In caso di discordanza, indicare il saldo da Voi risultante e le relative differenze.\n\n` +
+      `Distinti saluti,\n\n[NOME REVISORE]\n[STUDIO/QUALIFICA]\n[CONTATTI]`;
+
+    const res = await fetch("/api/tenant/drafts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assignment_id: assignmentId, title, type: "lettera_direzione", content }),
+    });
+    setGeneratingCirc(false);
+    if (!res.ok) {
+      setCircResult("error");
+      return;
+    }
+    const { id } = await res.json();
+    window.location.href = `/incarichi/${assignmentId}/bozze/${id}`;
+  }
 
   async function handleGenera() {
     setError(null);
@@ -277,6 +336,73 @@ export function AnalisiRischio({
           </Alert>
         )}
       </div>
+
+      {/* Genera Rilievi automatici */}
+      <div className="rounded-lg border border-orange-200 bg-orange-50 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h3 className="font-semibold text-orange-900">Genera Rilievi Automatici</h3>
+            <p className="mt-0.5 text-sm text-orange-700">
+              Analizza le variazioni significative e crea automaticamente i rilievi nella sezione
+              Rilievi del trimestre, con severità bassa / media / alta / critica.
+            </p>
+          </div>
+          <Button
+            type="button"
+            loading={generatingRilievi}
+            onClick={handleGeneraRilievi}
+            disabled={!!rilieviResult}
+            variant="secondary"
+          >
+            {rilieviResult ? "Rilievi generati ✓" : "Genera Rilievi"}
+          </Button>
+        </div>
+        {rilieviError && <Alert tone="error" className="mt-3">{rilieviError}</Alert>}
+        {rilieviResult && (
+          <Alert tone="success" className="mt-3">
+            {rilieviResult.created > 0 ? (
+              <>
+                <strong>{rilieviResult.created} {rilieviResult.created === 1 ? "rilievo creato" : "rilievi creati"}</strong>
+                {" "}nel trimestre.{" "}
+                <Link
+                  href={`/incarichi/${assignmentId}/trimestri/${quarterId}`}
+                  className="font-semibold underline"
+                >
+                  Vai al trimestre per visualizzarli →
+                </Link>
+              </>
+            ) : (
+              rilieviResult.message ?? "Operazione completata."
+            )}
+          </Alert>
+        )}
+      </div>
+
+      {/* Circolarizzazione crediti — solo se area crediti a rischio */}
+      {hasCrediti && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h3 className="font-semibold text-blue-900">Genera Lettera di Circolarizzazione</h3>
+              <p className="mt-0.5 text-sm text-blue-700">
+                L&apos;area crediti presenta variazioni significative. Genera la lettera di conferma
+                esterna da inviare ai debitori (ISA 505), pre-compilata con i conti rilevanti.
+              </p>
+            </div>
+            <Button
+              type="button"
+              loading={generatingCirc}
+              onClick={handleCircolarizzazione}
+              variant="secondary"
+            >
+              Genera Circolarizzazione
+            </Button>
+          </div>
+          {circResult === "error" && (
+            <Alert tone="error" className="mt-3">Errore durante la generazione della lettera.</Alert>
+          )}
+        </div>
+      )}
     </div>
   );
 }

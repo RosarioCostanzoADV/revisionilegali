@@ -3,12 +3,22 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ImportTable } from "./ImportTable";
 import { AnalisiRischio, type AreaSummary } from "./AnalisiRischio";
+import { AnalisiDocumento } from "./AnalisiDocumento";
 import { classifyAccount, getAreaLabel } from "@/lib/audit/classification";
 
 export const dynamic = "force-dynamic";
 
 const QUARTER_LABELS: Record<number, string> = {
   1: "1° Trimestre", 2: "2° Trimestre", 3: "3° Trimestre", 4: "4° Trimestre",
+};
+
+const DOC_TYPE_TITLES: Record<string, string> = {
+  bilancio_verifica: "Bilancio di verifica",
+  estratto_conto:    "Estratto conto bancario",
+  rimanenze:         "Dettaglio rimanenze",
+  registro_iva:      "Registro IVA",
+  libro_giornale:    "Libro giornale",
+  altro:             "Documento",
 };
 
 interface Entry {
@@ -133,7 +143,7 @@ export default async function ImportDetailPage({
   const [{ data: imp }, { data: quarter }, { data: assignment }] = await Promise.all([
     supabase
       .from("accounting_imports")
-      .select("id, filename, period_label, row_count, notes, created_at, uploaded_by")
+      .select("id, filename, period_label, row_count, notes, doc_type, created_at, uploaded_by")
       .eq("id", importId)
       .maybeSingle(),
     supabase.from("quarters").select("id, quarter").eq("id", quarterId).maybeSingle(),
@@ -178,7 +188,7 @@ export default async function ImportDetailPage({
           <span className="text-gray-600">Import — {imp.period_label}</span>
         </div>
         <h1 className="mt-3 text-2xl font-bold text-gray-900">
-          Bilancio di verifica — {imp.period_label}
+          {DOC_TYPE_TITLES[imp.doc_type ?? "bilancio_verifica"] ?? "Documento"} — {imp.period_label}
         </h1>
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-400">
           <span>{imp.filename}</span>
@@ -188,15 +198,25 @@ export default async function ImportDetailPage({
         </div>
       </div>
 
-      {/* Analisi rischio — PRIMA della tabella dettaglio */}
+      {/* Analisi — varia in base al tipo documento */}
       <div className="rounded-lg border border-gray-200 bg-white p-5">
-        <AnalisiRischio
-          areas={areas}
-          importId={importId}
-          assignmentId={assignmentId}
-          quarterId={quarterId}
-          hasPrev={hasPrev}
-        />
+        {(imp.doc_type === "bilancio_verifica" || !imp.doc_type) ? (
+          <AnalisiRischio
+            areas={areas}
+            importId={importId}
+            assignmentId={assignmentId}
+            quarterId={quarterId}
+            hasPrev={hasPrev}
+          />
+        ) : (
+          <AnalisiDocumento
+            docType={imp.doc_type}
+            importId={importId}
+            assignmentId={assignmentId}
+            quarterId={quarterId}
+            entries={entries ?? []}
+          />
+        )}
       </div>
 
       {/* Tabella dettaglio conti */}

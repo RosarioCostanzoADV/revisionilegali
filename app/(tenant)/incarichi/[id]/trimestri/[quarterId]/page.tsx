@@ -89,7 +89,7 @@ export default async function QuarterDetailPage({
       .order("created_at"),
     supabase
       .from("accounting_imports")
-      .select("id, filename, period_label, row_count, created_at, uploaded_by")
+      .select("id, filename, period_label, row_count, doc_type, created_at, uploaded_by")
       .eq("quarter_id", quarterId)
       .order("created_at", { ascending: false }),
   ]);

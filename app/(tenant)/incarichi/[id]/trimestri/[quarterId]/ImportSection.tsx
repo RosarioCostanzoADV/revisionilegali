@@ -5,11 +5,25 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 
+const DOC_TYPES = [
+  { value: "bilancio_verifica", label: "Bilancio di verifica" },
+  { value: "estratto_conto",   label: "Estratto conto bancario" },
+  { value: "rimanenze",        label: "Dettaglio rimanenze" },
+  { value: "registro_iva",     label: "Registro IVA" },
+  { value: "libro_giornale",   label: "Libro giornale" },
+  { value: "altro",            label: "Altro documento" },
+];
+
+const DOC_TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  DOC_TYPES.map((t) => [t.value, t.label]),
+);
+
 interface AccountingImport {
   id: string;
   filename: string;
   period_label: string;
   row_count: number | null;
+  doc_type: string;
   created_at: string;
 }
 
@@ -17,7 +31,6 @@ export function ImportSection({
   quarterId,
   assignmentId,
   initialImports,
-  uploaderNames,
   canUpload,
 }: {
   quarterId: string;
@@ -38,7 +51,7 @@ export function ImportSection({
     setError(null);
     const fd = new FormData(e.currentTarget);
     const file = fd.get("file") as File | null;
-    if (!file || file.size === 0) { setError("Seleziona un file CSV."); return; }
+    if (!file || file.size === 0) { setError("Seleziona un file."); return; }
     fd.set("quarter_id", quarterId);
     setUploading(true);
     const res = await fetch("/api/tenant/accounting-imports", { method: "POST", body: fd });
@@ -77,8 +90,24 @@ export function ImportSection({
       {showForm && (
         <form onSubmit={handleUpload} className="rounded-md border border-gray-200 bg-gray-50 p-4 space-y-3">
           {error && <Alert tone="error">{error}</Alert>}
+
+          {/* Tipo documento */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Documento *</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Tipo documento *</label>
+            <select
+              name="doc_type"
+              defaultValue="bilancio_verifica"
+              className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              {DOC_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* File */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">File *</label>
             <input
               ref={fileRef}
               name="file"
@@ -91,6 +120,7 @@ export function ImportSection({
               Formati supportati: <strong>PDF</strong>, Excel (.xlsx, .xls), ODS, CSV, TXT — max 10 MB
             </p>
           </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Periodo di riferimento *</label>
@@ -132,9 +162,10 @@ export function ImportSection({
                 <p className="text-sm font-medium text-gray-900 group-hover:text-brand-600 truncate">
                   {imp.period_label}
                 </p>
-                <div className="flex gap-x-3 mt-0.5">
+                <div className="flex gap-x-3 mt-0.5 flex-wrap">
+                  <span className="text-xs text-gray-400">{DOC_TYPE_LABELS[imp.doc_type] ?? imp.doc_type}</span>
                   <span className="text-xs text-gray-400">{imp.filename}</span>
-                  {imp.row_count && <span className="text-xs text-gray-400">{imp.row_count} conti</span>}
+                  {imp.row_count && <span className="text-xs text-gray-400">{imp.row_count} voci</span>}
                   <span className="text-xs text-gray-400">
                     {new Date(imp.created_at).toLocaleDateString("it-IT")}
                   </span>

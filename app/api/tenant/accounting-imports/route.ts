@@ -281,7 +281,7 @@ export async function GET(request: Request) {
   const { supabase } = ctx;
   const { data, error } = await supabase
     .from("accounting_imports")
-    .select("id, filename, period_label, row_count, notes, created_at, uploaded_by")
+    .select("id, filename, period_label, row_count, notes, doc_type, created_at, uploaded_by")
     .eq("quarter_id", quarter_id)
     .order("created_at", { ascending: false });
 
@@ -308,6 +308,7 @@ export async function POST(request: Request) {
   const quarter_id = formData.get("quarter_id") as string | null;
   const period_label = (formData.get("period_label") as string) || "—";
   const notes = (formData.get("notes") as string) || "";
+  const doc_type = (formData.get("doc_type") as string) || "bilancio_verifica";
 
   if (!file || !quarter_id) {
     return NextResponse.json({ error: "File e quarter_id obbligatori." }, { status: 400 });
@@ -351,6 +352,7 @@ export async function POST(request: Request) {
       period_label,
       row_count: entries.length,
       notes: notes || null,
+      doc_type,
     })
     .select("id")
     .single();
