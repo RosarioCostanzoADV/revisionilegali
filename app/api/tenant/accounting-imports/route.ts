@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { read as xlsxRead, utils as xlsxUtils } from "xlsx";
-// pdf-parse ha un bug con Next.js se importato a livello modulo — uso require diretto al core
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require("pdf-parse/lib/pdf-parse.js") as (buf: Buffer) => Promise<{ text: string }>;
 
 export const dynamic = "force-dynamic";
 
@@ -200,15 +197,18 @@ function parseSpreadsheet(buffer: ArrayBuffer): ParsedEntry[] {
 
 // Parsing PDF — estrae testo e tenta di ricavare righe contabili
 async function parsePDF(buffer: ArrayBuffer): Promise<ParsedEntry[]> {
-  const data = await pdfParse(Buffer.from(buffer));
+  // Dynamic import per evitare problemi di compatibilità Next.js/Vercel a compile time
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const pdfParseFn = require("pdf-parse/lib/pdf-parse.js") as (buf: Buffer) => Promise<{ text: string }>;
+  const data = await pdfParseFn(Buffer.from(buffer));
   const text = data.text;
   if (!text) return [];
 
   // Separa in righe non vuote
   const lines = text
     .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
+    .map((l: string) => l.trim())
+    .filter((l: string) => l.length > 0);
 
   if (lines.length < 2) return [];
 
@@ -222,7 +222,7 @@ async function parsePDF(buffer: ArrayBuffer): Promise<ParsedEntry[]> {
     if (!NUMBER_RE.test(line)) continue;
 
     // Tokenizza per spazi multipli o tab
-    const tokens = line.split(/\s{2,}|\t/).map((t) => t.trim()).filter(Boolean);
+    const tokens = line.split(/\s{2,}|\t/).map((t: string) => t.trim()).filter(Boolean);
     if (tokens.length < 2) continue;
 
     // Trova l'ultimo token numerico come saldo
