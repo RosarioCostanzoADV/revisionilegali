@@ -195,75 +195,67 @@ function parseSpreadsheet(buffer: ArrayBuffer): ParsedEntry[] {
   return entries;
 }
 
-// Parsing PDF — estrae testo e tenta di ricavare righe contabili
+// Parsing PDF — parser specializzato per bilanci italiani (layout 4 colonne o standard)
 async function parsePDF(buffer: ArrayBuffer): Promise<ParsedEntry[]> {
   const { extractText } = await import("unpdf");
   const { text: rawText } = await extractText(new Uint8Array(buffer), { mergePages: true });
-  const data = { text: rawText };
-  const text = data.text;
-  if (!text) return [];
+  if (!rawText) return [];
 
-  // Separa in righe non vuote
-  const lines = text
-    .split(/\r?\n/)
-    .map((l: string) => l.trim())
-    .filter((l: string) => l.length > 0);
-
-  if (lines.length < 2) return [];
-
-  // Strategia: cerca righe che contengano almeno un numero (saldo)
-  // Pattern tipico: "Codice  Descrizione  Saldo" oppure solo "Descrizione  Saldo"
-  const NUMBER_RE = /[\d.,]+/;
   const entries: ParsedEntry[] = [];
 
+  // Righe da saltare: intestazioni, totali, piè di pagina
+  const SKIP = [
+    /BILANCIO.*SEZIONI/i, /STATO PATRIMONIALE/i, /CONTO ECONOMICO/i,
+    /ATTIVITA['']?\s*$|PASSIVITA['']?\s*$|ATTIVITA['']?\s+PASSIVITA/i,
+    /Totale\s+(Attivita|Passivita|Costi|Ricavi|a pareggio)/i,
+    /Utile del periodo/i, /\*SEGUE\*/i, /Data di stampa/i,
+    /Pagina\s+\d+/i, /C\.F\.\s*\d|P\.IVA\s*\d/i,
+    /^Conto\s+Descrizione/i, /Part\/Csp/i,
+    /PIAZZA\s|VIA \s|CORSO /i,
+    /^[\s\d,\.%\-]+$/, // solo numeri/spazi
+    /^COSTI\s*$|^RICAVI\s*$/, /reddito\s+Saldo/i,
+    /^%\s*reddito/i,
+  ];
+
+  // Codice conto: gerarchico (03, 03.01, 03.01.07) oppure cliente/fornitore (66414)
+  // Seguito da descrizione testuale e da almeno un numero italiano
+  const ENTRY_RE = /\b(\d{1,2}(?:\.\d{2}){0,3}|\d{5,6})\s+([A-ZÀÈÉÌÒÙa-zàèéìòù][A-Za-zÀ-ÿ0-9\s''\/\-\.&,°\(\)]+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2}-?(?:\s+\d{1,3}(?:\.\d{3})*,\d{2}-?)*)/g;
+
+  // Parole riservate da non includere come nome conto
+  const RESERVED = /^(Conto|Descrizione|Saldo|Rettifiche|Part|Csp|Ricavi|Costi|reddito|Pagina|SEGUE)$/i;
+
+  const lines = rawText.split(/\r?\n/);
+
   for (const line of lines) {
-    // Salta righe puramente testuali senza numeri
-    if (!NUMBER_RE.test(line)) continue;
+    const trimmed = line.trim();
+    if (trimmed.length < 8) continue;
+    if (SKIP.some((p) => p.test(trimmed))) continue;
 
-    // Tokenizza per spazi multipli o tab
-    const tokens = line.split(/\s{2,}|\t/).map((t: string) => t.trim()).filter(Boolean);
-    if (tokens.length < 2) continue;
+    // Cerca tutti i pattern conto nella riga (gestisce layout 4 colonne)
+    const matches = [...trimmed.matchAll(ENTRY_RE)];
 
-    // Trova l'ultimo token numerico come saldo
-    let balanceIdx = -1;
-    for (let i = tokens.length - 1; i >= 0; i--) {
-      const n = parseNumber(tokens[i]!);
-      if (n !== 0 || /^[0-9]/.test(tokens[i]!)) {
-        balanceIdx = i;
-        break;
-      }
+    for (const m of matches) {
+      const code = m[1]!.trim();
+      const name = m[2]!.trim().replace(/\s+/g, " ");
+      const numsStr = m[3]!;
+
+      if (name.length < 2) continue;
+      if (RESERVED.test(name)) continue;
+      if (/^\d+$/.test(name)) continue; // nome puramente numerico
+
+      // L'ultimo numero nella sequenza è il "Saldo finale"
+      const nums = [...numsStr.matchAll(/\d{1,3}(?:\.\d{3})*,\d{2}-?/g)];
+      if (!nums.length) continue;
+
+      const balance = parseNumber(nums[nums.length - 1]![0]!);
+
+      entries.push({
+        account_code: code,
+        account_name: name,
+        balance,
+        balance_prev: null,
+      });
     }
-    if (balanceIdx <= 0) continue;
-
-    const balance = parseNumber(tokens[balanceIdx]!);
-
-    // Cerca saldo precedente (penultimo numero se presente)
-    let balancePrev: number | null = null;
-    if (balanceIdx >= 2) {
-      const candidate = parseNumber(tokens[balanceIdx - 1]!);
-      if (candidate !== 0) {
-        balancePrev = candidate;
-        balanceIdx = balanceIdx - 1;
-      }
-    }
-
-    // Codice: primo token se sembra un codice conto (numerico o alfanumerico breve)
-    let code: string | null = null;
-    let nameStart = 0;
-    if (/^[A-Z0-9]{1,10}$/.test(tokens[0]!)) {
-      code = tokens[0]!;
-      nameStart = 1;
-    }
-
-    const name = tokens.slice(nameStart, balanceIdx).join(" ").trim();
-    if (!name) continue;
-
-    entries.push({
-      account_code: code,
-      account_name: name,
-      balance,
-      balance_prev: balancePrev !== null && balancePrev !== 0 ? balancePrev : null,
-    });
   }
 
   return entries;
