@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { read as xlsxRead, utils as xlsxUtils } from "xlsx";
-import * as pdfParse from "pdf-parse";
+// pdf-parse ha un bug con Next.js se importato a livello modulo — uso require diretto al core
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfParse = require("pdf-parse/lib/pdf-parse.js") as (buf: Buffer) => Promise<{ text: string }>;
 
 export const dynamic = "force-dynamic";
 
@@ -198,9 +200,7 @@ function parseSpreadsheet(buffer: ArrayBuffer): ParsedEntry[] {
 
 // Parsing PDF — estrae testo e tenta di ricavare righe contabili
 async function parsePDF(buffer: ArrayBuffer): Promise<ParsedEntry[]> {
-  const data = await (pdfParse as unknown as (buf: Buffer) => Promise<{ text: string }>)(
-    Buffer.from(buffer)
-  );
+  const data = await pdfParse(Buffer.from(buffer));
   const text = data.text;
   if (!text) return [];
 
