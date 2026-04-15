@@ -197,10 +197,9 @@ function parseSpreadsheet(buffer: ArrayBuffer): ParsedEntry[] {
 
 // Parsing PDF — estrae testo e tenta di ricavare righe contabili
 async function parsePDF(buffer: ArrayBuffer): Promise<ParsedEntry[]> {
-  // Dynamic import per evitare problemi di compatibilità Next.js/Vercel a compile time
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfParseFn = require("pdf-parse/lib/pdf-parse.js") as (buf: Buffer) => Promise<{ text: string }>;
-  const data = await pdfParseFn(Buffer.from(buffer));
+  const { extractText } = await import("unpdf");
+  const { text: rawText } = await extractText(new Uint8Array(buffer), { mergePages: true });
+  const data = { text: rawText };
   const text = data.text;
   if (!text) return [];
 
