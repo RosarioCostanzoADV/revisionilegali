@@ -195,67 +195,71 @@ function parseSpreadsheet(buffer: ArrayBuffer): ParsedEntry[] {
   return entries;
 }
 
-// Parsing PDF — parser specializzato per bilanci italiani (layout 4 colonne o standard)
+// Parsing PDF — il testo estratto è una stringa continua (no newline affidabili)
+// Strategia: trova tutti i codici conto nel testo, poi per ognuno estrae
+// la descrizione (testo fino al primo numero italiano) e il saldo (ultimo numero).
 async function parsePDF(buffer: ArrayBuffer): Promise<ParsedEntry[]> {
   const { extractText } = await import("unpdf");
   const { text: rawText } = await extractText(new Uint8Array(buffer), { mergePages: true });
   if (!rawText) return [];
 
+  // Normalizza: unifica whitespace in spazio singolo
+  const text = rawText.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ");
+
+  // Descrizioni/parole da ignorare (intestazioni, totali)
+  const SKIP_NAME = /^(Conto|Descrizione|Saldo|Rettifiche|Part|Csp|Data|Pagina|BILANCIO|STATO|CONTO|ATTIVITA|PASSIVITA|COSTI|RICAVI|Totale|Utile|reddito|SEZIONI|ESERCIZIO|COMPETENZA|PATRIMONIALE|ECONOMICO|Mar)$/i;
+
+  // Trova tutte le posizioni dei codici conto:
+  // - gerarchico: "03", "03.01", "03.01.07", "03.01.07.01" (max 4 livelli di 2 cifre)
+  // - cliente/fornitore: 5-6 cifre consecutive
+  // Il codice deve essere seguito da spazio + lettera (non da virgola o altro numero)
+  const CODE_RE = /\b(\d{1,2}(?:\.\d{2}){0,3}|\d{5,6})\s+(?=[A-Za-zÀ-ÿ])/g;
+
+  interface CodePos { code: string; start: number; descStart: number }
+  const positions: CodePos[] = [];
+  let cm: RegExpExecArray | null;
+  while ((cm = CODE_RE.exec(text)) !== null) {
+    positions.push({
+      code: cm[1]!,
+      start: cm.index,
+      descStart: cm.index + cm[0].length,
+    });
+  }
+
+  if (positions.length === 0) return [];
+
   const entries: ParsedEntry[] = [];
+  // Numero in formato italiano: 1.234,56 o 1.234,56-
+  const IT_NUM_RE = /\d{1,3}(?:\.\d{3})*,\d{2}-?/g;
 
-  // Righe da saltare: intestazioni, totali, piè di pagina
-  const SKIP = [
-    /BILANCIO.*SEZIONI/i, /STATO PATRIMONIALE/i, /CONTO ECONOMICO/i,
-    /ATTIVITA['']?\s*$|PASSIVITA['']?\s*$|ATTIVITA['']?\s+PASSIVITA/i,
-    /Totale\s+(Attivita|Passivita|Costi|Ricavi|a pareggio)/i,
-    /Utile del periodo/i, /\*SEGUE\*/i, /Data di stampa/i,
-    /Pagina\s+\d+/i, /C\.F\.\s*\d|P\.IVA\s*\d/i,
-    /^Conto\s+Descrizione/i, /Part\/Csp/i,
-    /PIAZZA\s|VIA \s|CORSO /i,
-    /^[\s\d,\.%\-]+$/, // solo numeri/spazi
-    /^COSTI\s*$|^RICAVI\s*$/, /reddito\s+Saldo/i,
-    /^%\s*reddito/i,
-  ];
+  for (let i = 0; i < positions.length; i++) {
+    const { code, descStart } = positions[i]!;
+    // Il segmento va fino all'inizio del prossimo codice (o fine testo)
+    const segEnd = positions[i + 1]?.start ?? text.length;
+    const segment = text.substring(descStart, segEnd).trim();
 
-  // Codice conto: gerarchico (03, 03.01, 03.01.07) oppure cliente/fornitore (66414)
-  // Seguito da descrizione testuale e da almeno un numero italiano
-  const ENTRY_RE = /\b(\d{1,2}(?:\.\d{2}){0,3}|\d{5,6})\s+([A-ZÀÈÉÌÒÙa-zàèéìòù][A-Za-zÀ-ÿ0-9\s''\/\-\.&,°\(\)]+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2}-?(?:\s+\d{1,3}(?:\.\d{3})*,\d{2}-?)*)/g;
+    // Trova il primo numero italiano nel segmento: lì inizia la parte numerica
+    const firstNumMatch = segment.match(/\d{1,3}(?:\.\d{3})*,\d{2}/);
+    if (!firstNumMatch || firstNumMatch.index === undefined) continue;
 
-  // Parole riservate da non includere come nome conto
-  const RESERVED = /^(Conto|Descrizione|Saldo|Rettifiche|Part|Csp|Ricavi|Costi|reddito|Pagina|SEGUE)$/i;
+    // Descrizione = testo prima del primo numero
+    const name = segment.substring(0, firstNumMatch.index).trim().replace(/\s+/g, " ");
+    if (!name || name.length < 2) continue;
+    if (SKIP_NAME.test(name.split(" ")[0]!)) continue;
 
-  const lines = rawText.split(/\r?\n/);
+    // Tutti i numeri italiani nel segmento
+    const nums = [...segment.matchAll(IT_NUM_RE)];
+    if (!nums.length) continue;
 
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.length < 8) continue;
-    if (SKIP.some((p) => p.test(trimmed))) continue;
+    // L'ultimo numero è il "Saldo finale"
+    const balance = parseNumber(nums[nums.length - 1]![0]!);
 
-    // Cerca tutti i pattern conto nella riga (gestisce layout 4 colonne)
-    const matches = [...trimmed.matchAll(ENTRY_RE)];
-
-    for (const m of matches) {
-      const code = m[1]!.trim();
-      const name = m[2]!.trim().replace(/\s+/g, " ");
-      const numsStr = m[3]!;
-
-      if (name.length < 2) continue;
-      if (RESERVED.test(name)) continue;
-      if (/^\d+$/.test(name)) continue; // nome puramente numerico
-
-      // L'ultimo numero nella sequenza è il "Saldo finale"
-      const nums = [...numsStr.matchAll(/\d{1,3}(?:\.\d{3})*,\d{2}-?/g)];
-      if (!nums.length) continue;
-
-      const balance = parseNumber(nums[nums.length - 1]![0]!);
-
-      entries.push({
-        account_code: code,
-        account_name: name,
-        balance,
-        balance_prev: null,
-      });
-    }
+    entries.push({
+      account_code: code,
+      account_name: name,
+      balance,
+      balance_prev: null,
+    });
   }
 
   return entries;
