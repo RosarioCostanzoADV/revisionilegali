@@ -161,7 +161,7 @@ export default async function QuarterDetailPage({
         </div>
       )}
 
-      {/* Import contabile — prima azione operativa */}
+      {/* Import — prima azione operativa */}
       <ImportSection
         quarterId={quarterId}
         assignmentId={assignmentId}

@@ -64,12 +64,12 @@ export function ImportSection({
     <div className="rounded-lg border border-gray-200 bg-white p-5 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-700">
-          Import contabile
+          Import
           {imports.length > 0 && <span className="text-gray-400 font-normal"> ({imports.length})</span>}
         </h2>
         {canUpload && !showForm && (
           <Button type="button" variant="secondary" onClick={() => setShowForm(true)}>
-            + Importa CSV
+            + Importa documento
           </Button>
         )}
       </div>
@@ -78,17 +78,17 @@ export function ImportSection({
         <form onSubmit={handleUpload} className="rounded-md border border-gray-200 bg-gray-50 p-4 space-y-3">
           {error && <Alert tone="error">{error}</Alert>}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">File CSV *</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Documento *</label>
             <input
               ref={fileRef}
               name="file"
               type="file"
               required
-              accept=".csv,.txt,.xlsx,.xls,.ods"
+              accept=".pdf,.xlsx,.xls,.ods,.csv,.txt"
               className="block w-full text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-brand-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-brand-700 cursor-pointer"
             />
             <p className="mt-1 text-xs text-gray-400">
-              Formati supportati: <strong>Excel (.xlsx, .xls)</strong>, ODS, CSV, TXT — colonne: Codice, Descrizione, Saldo (opzionale: Saldo Precedente) — max 10 MB
+              Formati supportati: <strong>PDF</strong>, Excel (.xlsx, .xls), ODS, CSV, TXT — max 10 MB
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -120,7 +120,7 @@ export function ImportSection({
       )}
 
       {imports.length === 0 && !showForm ? (
-        <p className="text-sm text-gray-400">Nessun import contabile. Carica un file CSV dal tuo software di contabilità.</p>
+        <p className="text-sm text-gray-400">Nessun documento importato. Carica un bilancio, estratto conto, libro giornale o registro IVA.</p>
       ) : (
         <ul className="divide-y divide-gray-100">
           {imports.map((imp) => (

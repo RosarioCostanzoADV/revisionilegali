@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { read as xlsxRead, utils as xlsxUtils } from "xlsx";
+import * as pdfParse from "pdf-parse";
 
 export const dynamic = "force-dynamic";
 
@@ -195,6 +196,80 @@ function parseSpreadsheet(buffer: ArrayBuffer): ParsedEntry[] {
   return entries;
 }
 
+// Parsing PDF — estrae testo e tenta di ricavare righe contabili
+async function parsePDF(buffer: ArrayBuffer): Promise<ParsedEntry[]> {
+  const data = await (pdfParse as unknown as (buf: Buffer) => Promise<{ text: string }>)(
+    Buffer.from(buffer)
+  );
+  const text = data.text;
+  if (!text) return [];
+
+  // Separa in righe non vuote
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  if (lines.length < 2) return [];
+
+  // Strategia: cerca righe che contengano almeno un numero (saldo)
+  // Pattern tipico: "Codice  Descrizione  Saldo" oppure solo "Descrizione  Saldo"
+  const NUMBER_RE = /[\d.,]+/;
+  const entries: ParsedEntry[] = [];
+
+  for (const line of lines) {
+    // Salta righe puramente testuali senza numeri
+    if (!NUMBER_RE.test(line)) continue;
+
+    // Tokenizza per spazi multipli o tab
+    const tokens = line.split(/\s{2,}|\t/).map((t) => t.trim()).filter(Boolean);
+    if (tokens.length < 2) continue;
+
+    // Trova l'ultimo token numerico come saldo
+    let balanceIdx = -1;
+    for (let i = tokens.length - 1; i >= 0; i--) {
+      const n = parseNumber(tokens[i]!);
+      if (n !== 0 || /^[0-9]/.test(tokens[i]!)) {
+        balanceIdx = i;
+        break;
+      }
+    }
+    if (balanceIdx <= 0) continue;
+
+    const balance = parseNumber(tokens[balanceIdx]!);
+
+    // Cerca saldo precedente (penultimo numero se presente)
+    let balancePrev: number | null = null;
+    if (balanceIdx >= 2) {
+      const candidate = parseNumber(tokens[balanceIdx - 1]!);
+      if (candidate !== 0) {
+        balancePrev = candidate;
+        balanceIdx = balanceIdx - 1;
+      }
+    }
+
+    // Codice: primo token se sembra un codice conto (numerico o alfanumerico breve)
+    let code: string | null = null;
+    let nameStart = 0;
+    if (/^[A-Z0-9]{1,10}$/.test(tokens[0]!)) {
+      code = tokens[0]!;
+      nameStart = 1;
+    }
+
+    const name = tokens.slice(nameStart, balanceIdx).join(" ").trim();
+    if (!name) continue;
+
+    entries.push({
+      account_code: code,
+      account_name: name,
+      balance,
+      balance_prev: balancePrev !== null && balancePrev !== 0 ? balancePrev : null,
+    });
+  }
+
+  return entries;
+}
+
 export async function GET(request: Request) {
   const ctx = await requireTenantUser();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -244,11 +319,15 @@ export async function POST(request: Request) {
 
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
   const isSpreadsheet = ["xlsx", "xls", "ods"].includes(ext);
+  const isPDF = ext === "pdf";
 
   let entries: ParsedEntry[];
   if (isSpreadsheet) {
     const buffer = await file.arrayBuffer();
     entries = parseSpreadsheet(buffer);
+  } else if (isPDF) {
+    const buffer = await file.arrayBuffer();
+    entries = await parsePDF(buffer);
   } else {
     const text = await file.text();
     entries = parseCSV(text);
