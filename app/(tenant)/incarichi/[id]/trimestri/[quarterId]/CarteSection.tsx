@@ -43,16 +43,34 @@ export function CarteSection({
   assignmentId,
   initialPapers,
   preparerNames,
+  currentUserId,
+  canEdit,
 }: {
   quarterId: string;
   assignmentId: string;
   initialPapers: WorkingPaper[];
   preparerNames: Record<string, string>;
+  currentUserId: string;
+  canEdit: boolean;
 }) {
   const [papers, setPapers] = useState<WorkingPaper[]>(initialPapers);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function handleDelete(wp: WorkingPaper) {
+    if (!confirm(`Eliminare la carta "${wp.title}"? L'operazione non è reversibile.`)) return;
+    setDeletingId(wp.id);
+    const res = await fetch(`/api/tenant/working-papers/${wp.id}`, { method: "DELETE" });
+    setDeletingId(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(typeof data.error === "string" ? data.error : "Errore durante l'eliminazione.");
+      return;
+    }
+    setPapers((prev) => prev.filter((p) => p.id !== wp.id));
+  }
 
   async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -132,11 +150,14 @@ export function CarteSection({
         <ul className="divide-y divide-gray-100">
           {papers.map((wp) => {
             const st = STATUS_STYLES[wp.status] ?? STATUS_STYLES.bozza;
+            const canDelete =
+              wp.status !== "approvata" &&
+              (wp.prepared_by === currentUserId || canEdit);
             return (
-              <li key={wp.id} className="py-3">
+              <li key={wp.id} className="py-3 flex items-center gap-2">
                 <Link
                   href={`/incarichi/${assignmentId}/trimestri/${quarterId}/carte/${wp.id}`}
-                  className="flex items-center justify-between gap-3 group"
+                  className="flex flex-1 items-center justify-between gap-3 group min-w-0"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-gray-900 group-hover:text-brand-600 truncate">
@@ -154,6 +175,26 @@ export function CarteSection({
                     {st.label}
                   </span>
                 </Link>
+                {canDelete && (
+                  <button
+                    type="button"
+                    disabled={deletingId === wp.id}
+                    onClick={() => handleDelete(wp)}
+                    className="shrink-0 p-1 text-gray-300 hover:text-red-500 disabled:opacity-40 transition-colors"
+                    title="Elimina carta"
+                  >
+                    {deletingId === wp.id ? (
+                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                      </svg>
+                    ) : (
+                      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/>
+                      </svg>
+                    )}
+                  </button>
+                )}
               </li>
             );
           })}

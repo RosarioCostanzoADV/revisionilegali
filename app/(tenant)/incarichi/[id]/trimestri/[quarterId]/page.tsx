@@ -186,6 +186,8 @@ export default async function QuarterDetailPage({
         assignmentId={assignmentId}
         initialPapers={papers ?? []}
         preparerNames={userNames}
+        currentUserId={user.id}
+        canEdit={canEdit}
       />
 
       {/* Rilievi — emergono durante il lavoro sulle carte */}
