@@ -326,6 +326,15 @@ export async function POST(request: Request) {
   }
 
   if (entries.length === 0) {
+    // Debug temporaneo: mostra testo estratto per PDF
+    if (isPDF) {
+      const { extractText } = await import("unpdf");
+      const buf2 = await file.arrayBuffer();
+      const { text: dbg } = await extractText(new Uint8Array(buf2), { mergePages: true });
+      return NextResponse.json({
+        error: `PDF: nessuna riga rilevata. Testo estratto (primi 800 char):\n${(dbg ?? "").substring(0, 800)}`,
+      }, { status: 400 });
+    }
     return NextResponse.json({
       error: "Nessuna riga rilevata. Verifica che il file contenga una riga di intestazione e almeno una riga di dati.",
     }, { status: 400 });
