@@ -1,22 +1,16 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
-import { Alert } from "@/components/ui/Alert";
 
-const DOC_TYPES = [
-  { value: "bilancio_verifica", label: "Bilancio di verifica" },
-  { value: "estratto_conto",   label: "Estratto conto bancario" },
-  { value: "rimanenze",        label: "Dettaglio rimanenze" },
-  { value: "registro_iva",     label: "Registro IVA" },
-  { value: "libro_giornale",   label: "Libro giornale" },
-  { value: "altro",            label: "Altro documento" },
-];
-
-const DOC_TYPE_LABELS: Record<string, string> = Object.fromEntries(
-  DOC_TYPES.map((t) => [t.value, t.label]),
-);
+const DOC_TYPE_LABELS: Record<string, string> = {
+  bilancio_verifica: "Bilancio di verifica",
+  estratto_conto:    "Estratto conto bancario",
+  rimanenze:         "Dettaglio rimanenze",
+  registro_iva:      "Registro IVA",
+  libro_giornale:    "Libro giornale",
+  altro:             "Altro documento",
+};
 
 interface AccountingImport {
   id: string;
@@ -40,30 +34,7 @@ export function ImportSection({
   canUpload: boolean;
 }) {
   const [imports, setImports] = useState<AccountingImport[]>(initialImports);
-  const [showForm, setShowForm] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  async function handleUpload(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    const fd = new FormData(e.currentTarget);
-    const file = fd.get("file") as File | null;
-    if (!file || file.size === 0) { setError("Seleziona un file."); return; }
-    fd.set("quarter_id", quarterId);
-    setUploading(true);
-    const res = await fetch("/api/tenant/accounting-imports", { method: "POST", body: fd });
-    setUploading(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(typeof data.error === "string" ? data.error : "Errore durante l'importazione.");
-      return;
-    }
-    const { id } = await res.json();
-    window.location.href = `/incarichi/${assignmentId}/trimestri/${quarterId}/import/${id}`;
-  }
 
   async function handleDelete(id: string) {
     if (!confirm("Eliminare questo import e tutti i dati contabili associati?")) return;
@@ -80,77 +51,20 @@ export function ImportSection({
           Import
           {imports.length > 0 && <span className="text-gray-400 font-normal"> ({imports.length})</span>}
         </h2>
-        {canUpload && !showForm && (
-          <Button type="button" variant="secondary" onClick={() => setShowForm(true)}>
+        {canUpload && (
+          <Link
+            href={`/incarichi/${assignmentId}/trimestri/${quarterId}/import/nuovo`}
+            className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+          >
             + Importa documento
-          </Button>
+          </Link>
         )}
       </div>
 
-      {showForm && (
-        <form onSubmit={handleUpload} className="rounded-md border border-gray-200 bg-gray-50 p-4 space-y-3">
-          {error && <Alert tone="error">{error}</Alert>}
-
-          {/* Tipo documento */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Tipo documento *</label>
-            <select
-              name="doc_type"
-              defaultValue="bilancio_verifica"
-              className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              {DOC_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* File */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">File *</label>
-            <input
-              ref={fileRef}
-              name="file"
-              type="file"
-              required
-              accept=".pdf,.xlsx,.xls,.ods,.csv,.txt"
-              className="block w-full text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-brand-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-brand-700 cursor-pointer"
-            />
-            <p className="mt-1 text-xs text-gray-400">
-              Formati supportati: <strong>PDF</strong>, Excel (.xlsx, .xls), ODS, CSV, TXT — max 10 MB
-            </p>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Periodo di riferimento *</label>
-              <input
-                name="period_label"
-                type="text"
-                required
-                placeholder="es. 31/03/2026 oppure Q1 2026"
-                className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Note</label>
-              <input
-                name="notes"
-                type="text"
-                placeholder="Opzionale"
-                className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={() => { setShowForm(false); setError(null); }}>Annulla</Button>
-            <Button type="submit" loading={uploading}>Importa e analizza</Button>
-          </div>
-        </form>
-      )}
-
-      {imports.length === 0 && !showForm ? (
-        <p className="text-sm text-gray-400">Nessun documento importato. Carica un bilancio, estratto conto, libro giornale o registro IVA.</p>
+      {imports.length === 0 ? (
+        <p className="text-sm text-gray-400">
+          Nessun documento importato. Carica un bilancio, estratto conto, libro giornale o registro IVA.
+        </p>
       ) : (
         <ul className="divide-y divide-gray-100">
           {imports.map((imp) => (
