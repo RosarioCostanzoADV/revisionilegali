@@ -1,3 +1,5 @@
+import { read as xlsxRead, utils as xlsxUtils } from "xlsx";
+
 export interface ParsedEntry {
   account_code: string | null;
   account_name: string;
@@ -117,8 +119,6 @@ export function parseCSV(text: string): ParsedEntry[] {
 }
 
 export function parseSpreadsheet(buffer: ArrayBuffer): ParsedEntry[] {
-  // Dynamic import wrapped — caller must handle async
-  const { read: xlsxRead, utils: xlsxUtils } = require("xlsx") as typeof import("xlsx");
   const wb = xlsxRead(buffer, { type: "array" });
   const sheetName = wb.SheetNames[0];
   if (!sheetName) return [];
