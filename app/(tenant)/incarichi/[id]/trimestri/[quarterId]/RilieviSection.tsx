@@ -170,7 +170,7 @@ export function RilieviSection({
         <ul className="divide-y divide-gray-100">
           {findings.map((f) => {
             const sev = SEVERITY_MAP[f.severity];
-            const st = STATUS_STYLES[f.status] ?? STATUS_STYLES.aperto;
+            const st = STATUS_STYLES[f.status] ?? STATUS_STYLES.aperto!;
             const isOverdue = f.due_date && f.status !== "chiuso" && new Date(f.due_date) < new Date();
             return (
               <li key={f.id} className="py-3">

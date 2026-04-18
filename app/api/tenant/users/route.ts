@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 
 async function requireTenantOwner() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const { data: profile } = await supabase
@@ -62,7 +62,9 @@ export async function POST(request: Request) {
     .eq("id", profile.tenant_id)
     .maybeSingle();
 
-  const maxUsers = (tenant?.plans as { max_users: number } | null)?.max_users;
+  const plansRel = tenant?.plans as { max_users: number }[] | { max_users: number } | null | undefined;
+  const planRow = Array.isArray(plansRel) ? (plansRel[0] ?? null) : plansRel ?? null;
+  const maxUsers = planRow?.max_users;
   if (maxUsers) {
     const { count } = await admin
       .from("user_profiles")

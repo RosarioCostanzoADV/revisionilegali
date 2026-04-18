@@ -12,7 +12,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export default async function ProfiloPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 

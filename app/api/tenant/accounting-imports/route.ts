@@ -5,7 +5,7 @@ import { read as xlsxRead, utils as xlsxUtils } from "xlsx";
 export const dynamic = "force-dynamic";
 
 async function requireTenantUser() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const { data: profile } = await supabase

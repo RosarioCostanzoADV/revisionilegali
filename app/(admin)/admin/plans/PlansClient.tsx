@@ -45,7 +45,7 @@ function PlanForm({
 
   return (
     <div className="space-y-4 rounded-lg border border-brand-200 bg-brand-50/30 p-5">
-      {error && <Alert variant="error">{error}</Alert>}
+      {error && <Alert tone="error">{error}</Alert>}
       <div className="grid gap-3 sm:grid-cols-2">
         <Input
           label="Nome piano *"

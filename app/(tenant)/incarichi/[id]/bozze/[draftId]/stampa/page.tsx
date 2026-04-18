@@ -10,7 +10,7 @@ export default async function StampaPage({
   params: Promise<{ id: string; draftId: string }>;
 }) {
   const { id: assignmentId, draftId } = await params;
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 

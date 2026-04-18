@@ -51,7 +51,7 @@ export function WorkingPaperEditor({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  const st = STATUS_STYLES[status] ?? STATUS_STYLES.bozza;
+  const st = STATUS_STYLES[status] ?? STATUS_STYLES.bozza!;
   const isLocked = status === "approvata";
   const isInReview = status === "in_revisione";
 

@@ -65,7 +65,7 @@ export function FindingEditor({
   const [saved, setSaved] = useState(false);
 
   const isClosed = status === "chiuso";
-  const st = STATUS_STYLES[status] ?? STATUS_STYLES.aperto;
+  const st = STATUS_STYLES[status] ?? STATUS_STYLES.aperto!;
 
   const patch = useCallback(async (payload: Record<string, unknown>) => {
     setError(null);

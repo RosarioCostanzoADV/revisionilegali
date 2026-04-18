@@ -57,8 +57,8 @@ export function TenantSettingsForm({ tenant }: { tenant: Tenant }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error && <Alert variant="error">{error}</Alert>}
-      {success && <Alert variant="success">Impostazioni salvate correttamente.</Alert>}
+      {error && <Alert tone="error">{error}</Alert>}
+      {success && <Alert tone="success">Impostazioni salvate correttamente.</Alert>}
 
       <div className="rounded-lg border border-gray-200 bg-white p-6">
         <h2 className="mb-4 text-base font-semibold text-gray-900">Dati studio</h2>

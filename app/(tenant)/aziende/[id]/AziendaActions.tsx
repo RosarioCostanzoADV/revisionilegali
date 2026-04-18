@@ -32,7 +32,7 @@ export function AziendaActions({
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-5">
-      {error && <Alert variant="error">{error}</Alert>}
+      {error && <Alert tone="error">{error}</Alert>}
       <h2 className="mb-3 text-sm font-semibold text-gray-700">Azioni</h2>
       <Button
         variant={isArchived ? "primary" : "secondary"}

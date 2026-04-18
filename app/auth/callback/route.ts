@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   const next = searchParams.get("next") ?? "/update-password";
 
   if (code) {
-    const supabase = createClient();
+    const supabase = await createClient();
     await supabase.auth.exchangeCodeForSession(code);
   }
 

@@ -22,7 +22,7 @@ export default async function FindingDetailPage({
   params: Promise<{ id: string; quarterId: string; findingId: string }>;
 }) {
   const { id: assignmentId, quarterId, findingId } = await params;
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
@@ -77,7 +77,7 @@ export default async function FindingDetailPage({
     .order("created_at");
 
   const isOwnerOrRevisor = ["tenant_owner", "revisor"].includes(profile.role);
-  const sev = SEVERITY_STYLES[finding.severity] ?? SEVERITY_STYLES.media;
+  const sev = SEVERITY_STYLES[finding.severity] ?? SEVERITY_STYLES.media!;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 export default async function PianoPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
@@ -36,7 +36,8 @@ export default async function PianoPage() {
     .eq("tenant_id", profile.tenant_id)
     .eq("is_active", true);
 
-  const plan = (tenant.plans as Record<string, unknown> | null);
+  const plansRel = tenant.plans as Record<string, unknown>[] | Record<string, unknown> | null;
+  const plan = Array.isArray(plansRel) ? (plansRel[0] ?? null) : plansRel;
   const expires = tenant.plan_expires_at
     ? new Date(tenant.plan_expires_at).toLocaleDateString("it-IT")
     : null;

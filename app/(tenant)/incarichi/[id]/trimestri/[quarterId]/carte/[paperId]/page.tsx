@@ -32,7 +32,7 @@ export default async function WorkingPaperPage({
   params: Promise<{ id: string; quarterId: string; paperId: string }>;
 }) {
   const { id: assignmentId, quarterId, paperId } = await params;
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 

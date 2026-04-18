@@ -17,7 +17,7 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
 };
 
 export default async function IncarichiPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
@@ -74,8 +74,9 @@ export default async function IncarichiPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {assignments.map((a) => {
-                const s = STATUS_LABELS[a.status] ?? STATUS_LABELS.aperto;
-                const company = a.companies as { name: string } | null;
+                const s = STATUS_LABELS[a.status] ?? STATUS_LABELS.aperto!;
+                const companiesRel = a.companies as { name: string }[] | { name: string } | null;
+                const company = Array.isArray(companiesRel) ? (companiesRel[0] ?? null) : companiesRel;
                 return (
                   <tr key={a.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-900">

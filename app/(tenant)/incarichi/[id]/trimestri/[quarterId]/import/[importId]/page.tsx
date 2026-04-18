@@ -128,7 +128,7 @@ export default async function ImportDetailPage({
   params: Promise<{ id: string; quarterId: string; importId: string }>;
 }) {
   const { id: assignmentId, quarterId, importId } = await params;
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 

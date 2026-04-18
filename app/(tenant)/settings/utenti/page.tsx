@@ -14,7 +14,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export default async function UtentiPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
@@ -41,7 +41,9 @@ export default async function UtentiPage() {
     .eq("id", profile.tenant_id)
     .maybeSingle();
 
-  const maxUsers = (tenant?.plans as { max_users: number } | null)?.max_users ?? null;
+  const plansRel = tenant?.plans as { max_users: number }[] | { max_users: number } | null | undefined;
+  const planRow = Array.isArray(plansRel) ? (plansRel[0] ?? null) : plansRel ?? null;
+  const maxUsers = planRow?.max_users ?? null;
   const activeCount = (users ?? []).filter((u) => u.is_active).length;
 
   return (

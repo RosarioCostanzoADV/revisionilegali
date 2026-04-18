@@ -11,7 +11,7 @@ export default async function TenantLayout({
 }: {
   children: ReactNode;
 }) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

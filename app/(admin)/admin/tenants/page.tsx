@@ -75,8 +75,9 @@ export default async function TenantsPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {tenants.map((t) => {
-                const s = statusLabel[t.status] ?? statusLabel.active;
-                const plan = (t.plans as { name: string } | null)?.name ?? "—";
+                const s = statusLabel[t.status] ?? statusLabel.active!;
+                const plansRel = t.plans as { name: string }[] | { name: string } | null;
+                const plan = (Array.isArray(plansRel) ? plansRel[0]?.name : plansRel?.name) ?? "—";
                 const expires = t.plan_expires_at
                   ? new Date(t.plan_expires_at).toLocaleDateString("it-IT")
                   : "—";

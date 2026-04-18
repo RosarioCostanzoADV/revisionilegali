@@ -5,7 +5,7 @@ import type { MeResponse } from "@/lib/supabase/types";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
     error: userError,

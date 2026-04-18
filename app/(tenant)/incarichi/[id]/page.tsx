@@ -38,7 +38,7 @@ export default async function IncaricoDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
@@ -97,7 +97,7 @@ export default async function IncaricoDetailPage({
   ]);
 
   const canEdit = ["tenant_owner", "revisor"].includes(profile.role);
-  const s = STATUS_LABELS[assignment.status] ?? STATUS_LABELS.aperto;
+  const s = STATUS_LABELS[assignment.status] ?? STATUS_LABELS.aperto!;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -125,7 +125,7 @@ export default async function IncaricoDetailPage({
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {(quarters ?? []).map((q) => {
-              const qs = STATUS_LABELS[q.status] ?? STATUS_LABELS.aperto;
+              const qs = STATUS_LABELS[q.status] ?? STATUS_LABELS.aperto!;
               return (
                 <Link
                   key={q.id}

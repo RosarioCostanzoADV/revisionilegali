@@ -50,7 +50,7 @@ export function NewTenantForm({ plans }: { plans: Plan[] }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error && <Alert variant="error">{error}</Alert>}
+      {error && <Alert tone="error">{error}</Alert>}
 
       <div className="rounded-lg border border-gray-200 bg-white p-6">
         <h2 className="mb-4 text-base font-semibold text-gray-900">Dati studio</h2>

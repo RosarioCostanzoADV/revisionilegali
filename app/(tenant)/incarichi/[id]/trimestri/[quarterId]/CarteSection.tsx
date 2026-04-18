@@ -149,7 +149,7 @@ export function CarteSection({
       ) : (
         <ul className="divide-y divide-gray-100">
           {papers.map((wp) => {
-            const st = STATUS_STYLES[wp.status] ?? STATUS_STYLES.bozza;
+            const st = STATUS_STYLES[wp.status] ?? STATUS_STYLES.bozza!;
             const canDelete =
               wp.status !== "approvata" &&
               (wp.prepared_by === currentUserId || canEdit);

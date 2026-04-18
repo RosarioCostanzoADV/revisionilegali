@@ -35,7 +35,7 @@ export default async function QuarterDetailPage({
   params: Promise<{ id: string; quarterId: string }>;
 }) {
   const { id: assignmentId, quarterId } = await params;
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 

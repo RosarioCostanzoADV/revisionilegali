@@ -46,7 +46,7 @@ export function NuovaAziendaForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error && <Alert variant="error">{error}</Alert>}
+      {error && <Alert tone="error">{error}</Alert>}
 
       <div className="rounded-lg border border-gray-200 bg-white p-5">
         <h2 className="mb-4 text-sm font-semibold text-gray-700">Dati anagrafici</h2>

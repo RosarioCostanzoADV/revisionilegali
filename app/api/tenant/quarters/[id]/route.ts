@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 async function requireTenantUser() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const { data: profile } = await supabase
@@ -67,7 +67,7 @@ export async function PATCH(
 
   if (parsed.data.status === "chiuso") {
     updateData.closed_at = new Date().toISOString();
-  } else if (parsed.data.status && parsed.data.status !== "chiuso") {
+  } else if (parsed.data.status) {
     updateData.closed_at = null;
   }
 

@@ -3,12 +3,13 @@ import { LoginForm } from "./LoginForm";
 
 export const dynamic = "force-dynamic";
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams?: { error?: string; redirectTo?: string };
+  searchParams?: Promise<{ error?: string; redirectTo?: string }>;
 }) {
-  const errorKey = searchParams?.error;
+  const sp = (await searchParams) ?? {};
+  const errorKey = sp.error;
   const errorMessage =
     errorKey === "account_disabled"
       ? "Il tuo account è stato disattivato. Contatta il supporto."
@@ -26,7 +27,7 @@ export default function LoginPage({
           Inserisci le tue credenziali per accedere al tuo studio.
         </p>
       </div>
-      <LoginForm initialError={errorMessage} redirectTo={searchParams?.redirectTo} />
+      <LoginForm initialError={errorMessage} redirectTo={sp.redirectTo} />
       <div className="flex items-center justify-between text-sm">
         <Link
           href="/reset-password"

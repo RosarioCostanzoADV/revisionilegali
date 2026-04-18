@@ -59,8 +59,8 @@ export function ModificaAziendaForm({ company }: { company: Company }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && <Alert variant="error">{error}</Alert>}
-      {success && <Alert variant="success">Modifiche salvate.</Alert>}
+      {error && <Alert tone="error">{error}</Alert>}
+      {success && <Alert tone="success">Modifiche salvate.</Alert>}
 
       <div className="rounded-lg border border-gray-200 bg-white p-5">
         <h2 className="mb-4 text-sm font-semibold text-gray-700">Dati anagrafici</h2>
