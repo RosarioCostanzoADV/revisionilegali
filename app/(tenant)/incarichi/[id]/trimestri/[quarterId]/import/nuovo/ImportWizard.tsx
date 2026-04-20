@@ -53,6 +53,7 @@ export function ImportWizard({
 
   const [entries, setEntries] = useState<EnrichedEntry[]>([]);
   const [aiUsed, setAiUsed] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [docType, setDocType] = useState("bilancio_verifica");
   const [periodLabel, setPeriodLabel] = useState("");
   const [notes, setNotes] = useState("");
@@ -87,6 +88,7 @@ export function ImportWizard({
 
     setEntries(data.entries ?? []);
     setAiUsed(data.ai_used ?? false);
+    setAiError(data.ai_error ?? null);
     setStep(2);
   }
 
@@ -234,8 +236,13 @@ export function ImportWizard({
                 ✦ Mappatura AI attiva
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
-                Classificazione locale
+              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500" title={aiError ?? ""}>
+                Classificazione locale{aiError ? " ⚠" : ""}
+              </span>
+            )}
+            {aiError && (
+              <span className="text-xs text-orange-600 font-mono bg-orange-50 px-2 py-0.5 rounded border border-orange-200 max-w-xs truncate" title={aiError}>
+                AI: {aiError}
               </span>
             )}
           </div>

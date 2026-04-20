@@ -75,18 +75,22 @@ export async function POST(request: Request) {
   // Fase 2/3: mapping AI solo per bilancio_verifica
   let entries;
   let ai_used = false;
+  let ai_error: string | null = null;
 
   if (doc_type === "bilancio_verifica" && process.env.GEMINI_API_KEY) {
     try {
       entries = await mapBilancioWithGemini(rawEntries);
       ai_used = true;
-    } catch {
-      // Gemini fallita: classificazione locale
+    } catch (err) {
+      ai_error = err instanceof Error ? err.message : String(err);
       entries = enrichAllLocally(rawEntries);
     }
+  } else if (doc_type === "bilancio_verifica" && !process.env.GEMINI_API_KEY) {
+    ai_error = "GEMINI_API_KEY non configurata";
+    entries = enrichAllLocally(rawEntries);
   } else {
     entries = enrichAllLocally(rawEntries);
   }
 
-  return NextResponse.json({ entries, ai_used, doc_type });
+  return NextResponse.json({ entries, ai_used, ai_error, doc_type });
 }
