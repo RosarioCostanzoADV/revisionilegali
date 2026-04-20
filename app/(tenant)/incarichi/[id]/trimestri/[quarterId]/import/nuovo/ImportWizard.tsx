@@ -54,6 +54,7 @@ export function ImportWizard({
   const [entries, setEntries] = useState<EnrichedEntry[]>([]);
   const [aiUsed, setAiUsed] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [aiDebug, setAiDebug] = useState<Record<string, unknown> | null>(null);
   const [docType, setDocType] = useState("bilancio_verifica");
   const [periodLabel, setPeriodLabel] = useState("");
   const [notes, setNotes] = useState("");
@@ -89,6 +90,7 @@ export function ImportWizard({
     setEntries(data.entries ?? []);
     setAiUsed(data.ai_used ?? false);
     setAiError(data.ai_error ?? null);
+    setAiDebug(data.debug ?? null);
     setStep(2);
   }
 
@@ -243,6 +245,11 @@ export function ImportWizard({
             {aiError && (
               <span className="text-xs text-orange-600 font-mono bg-orange-50 px-2 py-0.5 rounded border border-orange-200 max-w-xs truncate" title={aiError}>
                 AI: {aiError}
+              </span>
+            )}
+            {aiDebug && (
+              <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded border border-gray-300 text-gray-600">
+                debug: {JSON.stringify(aiDebug)}
               </span>
             )}
           </div>

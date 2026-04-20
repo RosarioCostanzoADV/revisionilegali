@@ -92,5 +92,15 @@ export async function POST(request: Request) {
     entries = enrichAllLocally(rawEntries);
   }
 
-  return NextResponse.json({ entries, ai_used, ai_error, doc_type });
+  return NextResponse.json({
+    entries,
+    ai_used,
+    ai_error,
+    doc_type,
+    debug: {
+      doc_type_received: doc_type,
+      gemini_key_present: !!process.env.GEMINI_API_KEY,
+      raw_entries_count: rawEntries.length,
+    },
+  });
 }
