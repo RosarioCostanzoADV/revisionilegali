@@ -93,14 +93,17 @@ export async function POST(request: Request) {
     entries = enrichAllLocally(rawEntries);
   }
 
+  const gemini_key_present = !!process.env.GEMINI_API_KEY;
   return NextResponse.json({
+    _v: 4,
     entries,
     ai_used,
-    ai_error,
+    ai_error: ai_error ?? null,
     doc_type,
+    gemini_key_present,
     debug: {
       doc_type_received: doc_type,
-      gemini_key_present: !!process.env.GEMINI_API_KEY,
+      gemini_key_present,
       raw_entries_count: rawEntries.length,
     },
   });
