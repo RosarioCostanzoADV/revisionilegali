@@ -4,6 +4,7 @@ import { parseCSV, parseSpreadsheet, parsePDF } from "@/lib/accounting/parsers";
 import { mapBilancioWithGemini, enrichAllLocally } from "@/lib/gemini/mapBilancio";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 async function requireTenantUser() {
   const supabase = await createClient();
