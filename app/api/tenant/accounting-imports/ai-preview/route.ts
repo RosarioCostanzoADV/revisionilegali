@@ -94,9 +94,9 @@ export async function POST(request: Request) {
   }
 
   const gemini_key_present = !!process.env.GEMINI_API_KEY;
-  const build_ts = "2026-04-20T00:00:00Z";
-  return NextResponse.json({
-    _v: 5,
+  const build_ts = "2026-04-21T12:00:00Z";
+  const response = NextResponse.json({
+    _v: 6,
     build_ts,
     entries,
     ai_used,
@@ -109,4 +109,6 @@ export async function POST(request: Request) {
       raw_entries_count: rawEntries.length,
     },
   });
+  response.headers.set("X-Route-Version", "6");
+  return response;
 }
