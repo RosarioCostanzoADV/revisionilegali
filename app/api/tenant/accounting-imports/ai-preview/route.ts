@@ -94,8 +94,10 @@ export async function POST(request: Request) {
   }
 
   const gemini_key_present = !!process.env.GEMINI_API_KEY;
+  const build_ts = "2026-04-20T00:00:00Z";
   return NextResponse.json({
-    _v: 4,
+    _v: 5,
+    build_ts,
     entries,
     ai_used,
     ai_error: ai_error ?? null,
