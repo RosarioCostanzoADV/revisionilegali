@@ -37,7 +37,10 @@ export async function mapBilancioWithGemini(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = genAI.getGenerativeModel(
+    { model: "gemini-1.5-flash-latest" },
+    { apiVersion: "v1" },
+  );
 
   // Rappresentazione compatta per ridurre i token
   const compact = filtered.map((e) => ({
