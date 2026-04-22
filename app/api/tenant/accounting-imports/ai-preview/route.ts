@@ -94,9 +94,23 @@ export async function POST(request: Request) {
   }
 
   const gemini_key_present = !!process.env.GEMINI_API_KEY;
-  const build_ts = "2026-04-21T12:00:00Z";
+
+  // List available Gemini models for diagnostics
+  let available_models: string[] = [];
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const listRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`,
+        { signal: AbortSignal.timeout(5000) },
+      );
+      const listData = await listRes.json() as { models?: Array<{ name: string }> };
+      available_models = (listData.models ?? []).map((m) => m.name);
+    } catch { /* ignore */ }
+  }
+
+  const build_ts = "2026-04-22T10:00:00Z";
   const response = NextResponse.json({
-    _v: 6,
+    _v: 7,
     build_ts,
     entries,
     ai_used,
@@ -107,6 +121,7 @@ export async function POST(request: Request) {
       doc_type_received: doc_type,
       gemini_key_present,
       raw_entries_count: rawEntries.length,
+      available_models,
     },
   });
   response.headers.set("X-Route-Version", "6");
