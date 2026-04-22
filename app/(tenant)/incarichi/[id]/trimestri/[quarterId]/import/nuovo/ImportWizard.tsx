@@ -134,8 +134,21 @@ export function ImportWizard({
     SP_P: entries.filter((e) => e.schema_civilistico === "SP_P").reduce((s, e) => s + e.balance, 0),
     CE:   entries.filter((e) => e.schema_civilistico === "CE").reduce((s, e) => s + e.balance, 0),
   };
-  const sbilancio = schemaTotals.SP_A - schemaTotals.SP_P;
-  const tollerazaQuadratura = Math.max(1, Math.abs(schemaTotals.SP_A) * 0.001);
+  // Separazione CE in ricavi vs costi tramite audit_area classificato dall'AI
+  const ricaviTotal = entries
+    .filter((e) => e.schema_civilistico === "CE" && e.audit_area === "ricavi")
+    .reduce((s, e) => s + e.balance, 0);
+  const costiTotal = entries
+    .filter((e) => e.schema_civilistico === "CE" && e.audit_area !== "ricavi")
+    .reduce((s, e) => s + e.balance, 0);
+  // In bilancio di verifica infra-annuale l'utile del periodo non è iscritto in PN:
+  //  - SP: emerge come differenza Attivo − (Passivo+PN)
+  //  - CE: emerge come differenza Ricavi − Costi
+  // Il bilancio è quadrato se le due differenze coincidono.
+  const utilePeriodoSP = schemaTotals.SP_A - schemaTotals.SP_P;
+  const utilePeriodoCE = ricaviTotal - costiTotal;
+  const discrepanzaQuadratura = utilePeriodoSP - utilePeriodoCE;
+  const tollerazaQuadratura = Math.max(100, Math.abs(schemaTotals.SP_A) * 0.01);
 
   const filteredEntries = schemaFilter === "tutti"
     ? entries
@@ -278,13 +291,22 @@ export function ImportWizard({
               </div>
               <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
                 <p className="text-xs text-amber-600 font-medium">Conto Economico</p>
-                <p className="text-lg font-bold text-amber-700 tabular-nums">{fmt(schemaTotals.CE)} €</p>
+                <p className="text-lg font-bold text-amber-700 tabular-nums">{fmt(ricaviTotal)} R · {fmt(costiTotal)} C</p>
                 <p className="text-xs text-amber-600">{schemaCounts.CE} voci</p>
               </div>
             </div>
-            <div className={`mt-2 rounded-md border px-3 py-2 text-sm ${Math.abs(sbilancio) < tollerazaQuadratura ? "border-green-200 bg-green-50 text-green-700" : "border-red-200 bg-red-50 text-red-700"}`}>
-              <strong>Quadratura SP:</strong> Attivo {fmt(schemaTotals.SP_A)} − Passivo+PN {fmt(schemaTotals.SP_P)} = <span className="tabular-nums font-semibold">{fmt(sbilancio)} €</span>
-              {Math.abs(sbilancio) < tollerazaQuadratura ? " ✓ bilancio quadrato" : " — sbilancio rilevato (verifica classificazione AI)"}
+            <div className={`mt-2 rounded-md border px-3 py-2 text-sm ${Math.abs(discrepanzaQuadratura) < tollerazaQuadratura ? "border-green-200 bg-green-50 text-green-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+              <strong>Quadratura bilancio di verifica:</strong>
+              <div className="mt-1 grid grid-cols-2 gap-2 text-xs">
+                <div>Utile periodo da SP (Attivo − Passivo+PN): <span className="tabular-nums font-semibold">{fmt(utilePeriodoSP)} €</span></div>
+                <div>Utile periodo da CE (Ricavi − Costi): <span className="tabular-nums font-semibold">{fmt(utilePeriodoCE)} €</span></div>
+              </div>
+              <div className="mt-1">
+                Discrepanza: <span className="tabular-nums font-semibold">{fmt(discrepanzaQuadratura)} €</span>
+                {Math.abs(discrepanzaQuadratura) < tollerazaQuadratura
+                  ? " ✓ bilancio quadrato (l'utile del periodo emerge coerentemente da SP e CE)"
+                  : " ⚠ discrepanza rilevata — probabile classificazione AI imprecisa su 1-2 voci"}
+              </div>
             </div>
           </>
         )}
