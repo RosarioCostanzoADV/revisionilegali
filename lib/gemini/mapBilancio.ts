@@ -54,11 +54,26 @@ Voci da mappare: ${JSON.stringify(compact)}
 Rispondi SOLO con un JSON array senza markdown: [{"c":"...","voce_standard":"...","schema":"...","audit_area":"..."}]`;
 
   const attemptErrors: string[] = [];
+  // Budget totale per la chiamata AI: Vercel Hobby = 60s. Lasciamo 10s di
+  // margine per parsing + response → 50s divisi tra i tentativi.
+  const START = Date.now();
+  const TOTAL_BUDGET_MS = 50_000;
+  const PER_ATTEMPT_MS = 22_000;
 
   for (const modelName of MODELS) {
+    const elapsed = Date.now() - START;
+    if (elapsed > TOTAL_BUDGET_MS - 5_000) {
+      attemptErrors.push(`[${modelName}] budget tempo esaurito prima del tentativo`);
+      break;
+    }
     try {
       const model = genAI.getGenerativeModel({ model: modelName });
-      const result = await model.generateContent(prompt);
+      const result = await Promise.race([
+        model.generateContent(prompt),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`timeout ${PER_ATTEMPT_MS / 1000}s`)), PER_ATTEMPT_MS),
+        ),
+      ]);
       const raw = result.response.text().trim()
         .replace(/^```json?\s*/i, "")
         .replace(/\s*```$/i, "")
