@@ -13,8 +13,14 @@ export function parseNumber(s: string): number {
   s = s.trim().replace(/[€$\s"']/g, "");
   if (!s) return 0;
 
-  const negative = (s.startsWith("(") && s.endsWith(")")) || s.startsWith("-");
-  s = s.replace(/[()]/g, "").replace(/^-/, "");
+  // Nei bilanci italiani il segno negativo è spesso un suffisso (es.
+  // "9.051,12-" = -9.051,12). Gestiamo sia prefisso che suffisso, oltre
+  // alla forma contabile tra parentesi.
+  const negative =
+    (s.startsWith("(") && s.endsWith(")")) ||
+    s.startsWith("-") ||
+    s.endsWith("-");
+  s = s.replace(/[()]/g, "").replace(/^-/, "").replace(/-$/, "");
 
   const hasDot = s.includes(".");
   const hasComma = s.includes(",");
@@ -205,7 +211,23 @@ export async function parsePDF(buffer: ArrayBuffer): Promise<ParsedEntry[]> {
     const nums = [...segment.matchAll(IT_NUM_RE)];
     if (!nums.length) continue;
 
-    const balance = parseNumber(nums[nums.length - 1]![0]!);
+    // Nel bilancio italiano a 3 colonne (saldo_non_rettif, rettifiche,
+    // saldo_finale) quando saldo_finale = 0 la cella viene lasciata vuota.
+    // Se i primi due numeri si compensano esattamente, il conto è azzerato
+    // dalle rettifiche (tipico caso "IVA su acquisti" compensata con la
+    // liquidazione). Senza questo controllo prenderemmo la rettifica come
+    // saldo finale e il totale risulterebbe gonfiato.
+    const parsedNums = nums.map((n) => parseNumber(n[0]!));
+    let balance: number;
+    if (
+      parsedNums.length >= 2 &&
+      Math.abs(parsedNums[0]! + parsedNums[1]!) < 0.01 &&
+      Math.abs(parsedNums[0]!) > 0.01
+    ) {
+      balance = 0;
+    } else {
+      balance = parsedNums[parsedNums.length - 1]!;
+    }
     entries.push({ account_code: code, account_name: name, balance, balance_prev: null });
   }
 
