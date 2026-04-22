@@ -17,14 +17,12 @@ const VALID_AREAS = [
   "tfr_fondi", "ricavi", "costi_personale", "acquisti_costi", "oneri_finanziari", "altri",
 ];
 
-// Fase 2: filtra le voci non significative prima di inviarle a Gemini
 function filterEntries(entries: ParsedEntry[]): ParsedEntry[] {
   return entries.filter(
     (e) => e.balance !== 0 && e.account_name.trim().length > 2,
   );
 }
 
-// Fase 3: invia a Gemini 1.5 Flash solo il testo filtrato
 export async function mapBilancioWithGemini(
   entries: ParsedEntry[],
 ): Promise<EnrichedEntry[]> {
@@ -37,9 +35,8 @@ export async function mapBilancioWithGemini(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
 
-  // Rappresentazione compatta per ridurre i token
   const compact = filtered.map((e) => ({
     c: e.account_code ?? "",
     n: e.account_name.trim(),
@@ -56,37 +53,48 @@ Voci da mappare: ${JSON.stringify(compact)}
 
 Rispondi SOLO con un JSON array senza markdown: [{"c":"...","voce_standard":"...","schema":"...","audit_area":"..."}]`;
 
-  const result = await model.generateContent(prompt);
-  const raw = result.response.text().trim().replace(/^```json?\s*/i, "").replace(/\s*```$/i, "").trim();
+  let lastError: Error = new Error("No models available");
 
-  let mapped: Array<{ c: string; voce_standard: string; schema: string; audit_area: string }>;
-  try {
-    mapped = JSON.parse(raw);
-  } catch {
-    // Se il parsing JSON fallisce, usa classificazione locale per tutti
-    return entries.map((e) => enrichLocally(e));
+  for (const modelName of MODELS) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      const raw = result.response.text().trim()
+        .replace(/^```json?\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+
+      let mapped: Array<{ c: string; voce_standard: string; schema: string; audit_area: string }>;
+      try {
+        mapped = JSON.parse(raw);
+      } catch {
+        return entries.map((e) => enrichLocally(e));
+      }
+
+      const byCode: Record<string, { voce_standard: string; schema: string; audit_area: string }> = {};
+      for (const m of mapped) {
+        byCode[m.c] = m;
+      }
+
+      return entries.map((e, i) => {
+        const key = e.account_code ?? String(i);
+        const gm = byCode[key];
+        if (!gm) return enrichLocally(e);
+        return {
+          ...e,
+          voce_standard: gm.voce_standard || null,
+          schema_civilistico: (VALID_SCHEMAS.includes(gm.schema as SchemaCivilistico) ? gm.schema : null) as SchemaCivilistico | null,
+          audit_area: VALID_AREAS.includes(gm.audit_area) ? gm.audit_area : classifyAccount(e.account_name),
+        };
+      });
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
   }
 
-  // Indicizza per codice conto
-  const byCode: Record<string, { voce_standard: string; schema: string; audit_area: string }> = {};
-  for (const m of mapped) {
-    byCode[m.c] = m;
-  }
-
-  return entries.map((e, i) => {
-    const key = e.account_code ?? String(i);
-    const gm = byCode[key];
-    if (!gm) return enrichLocally(e);
-    return {
-      ...e,
-      voce_standard: gm.voce_standard || null,
-      schema_civilistico: (VALID_SCHEMAS.includes(gm.schema as SchemaCivilistico) ? gm.schema : null) as SchemaCivilistico | null,
-      audit_area: VALID_AREAS.includes(gm.audit_area) ? gm.audit_area : classifyAccount(e.account_name),
-    };
-  });
+  throw lastError;
 }
 
-// Classificazione locale di fallback (zero token)
 export function enrichLocally(entry: ParsedEntry): EnrichedEntry {
   return {
     ...entry,
