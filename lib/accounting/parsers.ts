@@ -209,5 +209,24 @@ export async function parsePDF(buffer: ArrayBuffer): Promise<ParsedEntry[]> {
     entries.push({ account_code: code, account_name: name, balance, balance_prev: null });
   }
 
-  return entries;
+  return keepHierarchyLeaves(entries);
+}
+
+// Bilancio di verifica italiano: i codici puntati (es. 03.01.07) formano una
+// gerarchia Mastro → Conto → Sottoconto. Ogni livello ripete il totale dei
+// figli, quindi sommare tutti i livelli triplica/quadruplica gli importi.
+// Teniamo solo i codici puntati senza figli (le foglie) ed escludiamo i
+// partitari numerici puri (clienti/fornitori 5-6 cifre) che sono già inclusi
+// nel saldo del loro sottoconto padre.
+function keepHierarchyLeaves(entries: ParsedEntry[]): ParsedEntry[] {
+  const dotted = entries.filter((e) => (e.account_code ?? "").includes("."));
+  if (dotted.length === 0) return entries;
+  const codes = new Set(dotted.map((e) => e.account_code!));
+  return dotted.filter((e) => {
+    const prefix = e.account_code! + ".";
+    for (const other of codes) {
+      if (other !== e.account_code && other.startsWith(prefix)) return false;
+    }
+    return true;
+  });
 }

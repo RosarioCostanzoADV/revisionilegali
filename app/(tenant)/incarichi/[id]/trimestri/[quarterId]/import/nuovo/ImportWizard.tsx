@@ -134,7 +134,8 @@ export function ImportWizard({
     SP_P: entries.filter((e) => e.schema_civilistico === "SP_P").reduce((s, e) => s + e.balance, 0),
     CE:   entries.filter((e) => e.schema_civilistico === "CE").reduce((s, e) => s + e.balance, 0),
   };
-  const sbilancio = schemaTotals.SP_A + schemaTotals.SP_P;
+  const sbilancio = schemaTotals.SP_A - schemaTotals.SP_P;
+  const tollerazaQuadratura = Math.max(1, Math.abs(schemaTotals.SP_A) * 0.001);
 
   const filteredEntries = schemaFilter === "tutti"
     ? entries
@@ -281,9 +282,9 @@ export function ImportWizard({
                 <p className="text-xs text-amber-600">{schemaCounts.CE} voci</p>
               </div>
             </div>
-            <div className={`mt-2 rounded-md border px-3 py-2 text-sm ${Math.abs(sbilancio) < 1 ? "border-green-200 bg-green-50 text-green-700" : "border-red-200 bg-red-50 text-red-700"}`}>
-              <strong>Quadratura SP:</strong> Attivo {fmt(schemaTotals.SP_A)} {sbilancio >= 0 ? "+" : "−"} |Passivo| {fmt(Math.abs(schemaTotals.SP_P))} = {fmt(sbilancio)} €
-              {Math.abs(sbilancio) < 1 ? " ✓ bilancio quadrato" : " — sbilancio rilevato"}
+            <div className={`mt-2 rounded-md border px-3 py-2 text-sm ${Math.abs(sbilancio) < tollerazaQuadratura ? "border-green-200 bg-green-50 text-green-700" : "border-red-200 bg-red-50 text-red-700"}`}>
+              <strong>Quadratura SP:</strong> Attivo {fmt(schemaTotals.SP_A)} − Passivo+PN {fmt(schemaTotals.SP_P)} = <span className="tabular-nums font-semibold">{fmt(sbilancio)} €</span>
+              {Math.abs(sbilancio) < tollerazaQuadratura ? " ✓ bilancio quadrato" : " — sbilancio rilevato (verifica classificazione AI)"}
             </div>
           </>
         )}
