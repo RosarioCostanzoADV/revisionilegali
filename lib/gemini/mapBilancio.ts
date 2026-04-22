@@ -35,7 +35,11 @@ export async function mapBilancioWithGemini(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const MODELS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest", "gemini-2.0-flash"];
+  // Su Vercel Hobby il budget totale è 60s: usare 4 modelli in fallback
+  // significa timeout strettissimi che su free tier fanno fallire tutto.
+  // Meglio un singolo tentativo generoso sul modello più veloce, poi un
+  // fallback più leggero se c'è tempo residuo.
+  const MODELS = ["gemini-flash-latest", "gemini-flash-lite-latest"];
 
   const compact = filtered.map((e) => ({
     c: e.account_code ?? "",
@@ -54,24 +58,30 @@ Voci da mappare: ${JSON.stringify(compact)}
 Rispondi SOLO con un JSON array senza markdown: [{"c":"...","voce_standard":"...","schema":"...","audit_area":"..."}]`;
 
   const attemptErrors: string[] = [];
-  // Budget totale per la chiamata AI: Vercel Hobby = 60s. Lasciamo 10s di
-  // margine per parsing + response → 50s divisi tra i tentativi.
+  // Vercel Hobby: 60s budget. Lasciamo 8s per parsing + response → 52s AI.
+  // Primo tentativo generoso (40s) sul modello principale; se fallisce,
+  // secondo tentativo col tempo residuo sul lite (almeno 8s).
   const START = Date.now();
-  const TOTAL_BUDGET_MS = 50_000;
-  const PER_ATTEMPT_MS = 22_000;
+  const TOTAL_BUDGET_MS = 52_000;
+  const FIRST_ATTEMPT_MS = 40_000;
 
   for (const modelName of MODELS) {
     const elapsed = Date.now() - START;
-    if (elapsed > TOTAL_BUDGET_MS - 5_000) {
-      attemptErrors.push(`[${modelName}] budget tempo esaurito prima del tentativo`);
+    const remaining = TOTAL_BUDGET_MS - elapsed;
+    if (remaining < 8_000) {
+      attemptErrors.push(`[${modelName}] budget tempo esaurito (rimanenti ${remaining}ms)`);
       break;
     }
+    const attemptTimeoutMs = Math.min(
+      modelName === MODELS[0] ? FIRST_ATTEMPT_MS : remaining - 2_000,
+      remaining - 2_000,
+    );
     try {
       const model = genAI.getGenerativeModel({ model: modelName });
       const result = await Promise.race([
         model.generateContent(prompt),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`timeout ${PER_ATTEMPT_MS / 1000}s`)), PER_ATTEMPT_MS),
+          setTimeout(() => reject(new Error(`timeout ${Math.round(attemptTimeoutMs / 1000)}s`)), attemptTimeoutMs),
         ),
       ]);
       const raw = result.response.text().trim()
@@ -111,12 +121,33 @@ Rispondi SOLO con un JSON array senza markdown: [{"c":"...","voce_standard":"...
   throw new Error(`Tutti i modelli Gemini hanno fallito:\n${attemptErrors.join("\n")}`);
 }
 
+// Mappatura deterministica audit_area → schema_civilistico, usata come
+// fallback quando l'AI non è disponibile. Permette almeno di suddividere
+// SP Attivo / SP Passivo / CE anche senza mappatura civilistica AI.
+const AREA_TO_SCHEMA: Record<string, SchemaCivilistico> = {
+  immobilizzazioni: "SP_A",
+  rimanenze: "SP_A",
+  crediti: "SP_A",
+  altri_crediti: "SP_A",
+  liquidita: "SP_A",
+  patrimonio_netto: "SP_P",
+  debiti: "SP_P",
+  debiti_finanziari: "SP_P",
+  debiti_tributari: "SP_P",
+  tfr_fondi: "SP_P",
+  ricavi: "CE",
+  costi_personale: "CE",
+  acquisti_costi: "CE",
+  oneri_finanziari: "CE",
+};
+
 export function enrichLocally(entry: ParsedEntry): EnrichedEntry {
+  const area = classifyAccount(entry.account_name);
   return {
     ...entry,
     voce_standard: null,
-    schema_civilistico: null,
-    audit_area: classifyAccount(entry.account_name),
+    schema_civilistico: AREA_TO_SCHEMA[area] ?? null,
+    audit_area: area,
   };
 }
 
