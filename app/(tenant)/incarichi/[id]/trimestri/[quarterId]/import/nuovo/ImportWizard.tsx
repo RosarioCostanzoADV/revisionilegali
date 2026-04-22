@@ -129,6 +129,12 @@ export function ImportWizard({
     SP_P: entries.filter((e) => e.schema_civilistico === "SP_P").length,
     CE:   entries.filter((e) => e.schema_civilistico === "CE").length,
   };
+  const schemaTotals = {
+    SP_A: entries.filter((e) => e.schema_civilistico === "SP_A").reduce((s, e) => s + e.balance, 0),
+    SP_P: entries.filter((e) => e.schema_civilistico === "SP_P").reduce((s, e) => s + e.balance, 0),
+    CE:   entries.filter((e) => e.schema_civilistico === "CE").reduce((s, e) => s + e.balance, 0),
+  };
+  const sbilancio = schemaTotals.SP_A + schemaTotals.SP_P;
 
   const filteredEntries = schemaFilter === "tutti"
     ? entries
@@ -257,20 +263,29 @@ export function ImportWizard({
 
         {/* Statistiche schema */}
         {(schemaCounts.SP_A > 0 || schemaCounts.SP_P > 0 || schemaCounts.CE > 0) && (
-          <div className="mt-4 grid grid-cols-3 gap-3">
-            <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-center">
-              <p className="text-xs text-blue-600 font-medium">SP Attivo</p>
-              <p className="text-lg font-bold text-blue-700">{schemaCounts.SP_A}</p>
+          <>
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2">
+                <p className="text-xs text-blue-600 font-medium">SP Attivo</p>
+                <p className="text-lg font-bold text-blue-700 tabular-nums">{fmt(schemaTotals.SP_A)} €</p>
+                <p className="text-xs text-blue-600">{schemaCounts.SP_A} voci</p>
+              </div>
+              <div className="rounded-md border border-purple-200 bg-purple-50 px-3 py-2">
+                <p className="text-xs text-purple-600 font-medium">SP Passivo + PN</p>
+                <p className="text-lg font-bold text-purple-700 tabular-nums">{fmt(schemaTotals.SP_P)} €</p>
+                <p className="text-xs text-purple-600">{schemaCounts.SP_P} voci</p>
+              </div>
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                <p className="text-xs text-amber-600 font-medium">Conto Economico</p>
+                <p className="text-lg font-bold text-amber-700 tabular-nums">{fmt(schemaTotals.CE)} €</p>
+                <p className="text-xs text-amber-600">{schemaCounts.CE} voci</p>
+              </div>
             </div>
-            <div className="rounded-md border border-purple-200 bg-purple-50 px-3 py-2 text-center">
-              <p className="text-xs text-purple-600 font-medium">SP Passivo</p>
-              <p className="text-lg font-bold text-purple-700">{schemaCounts.SP_P}</p>
+            <div className={`mt-2 rounded-md border px-3 py-2 text-sm ${Math.abs(sbilancio) < 1 ? "border-green-200 bg-green-50 text-green-700" : "border-red-200 bg-red-50 text-red-700"}`}>
+              <strong>Quadratura SP:</strong> Attivo {fmt(schemaTotals.SP_A)} {sbilancio >= 0 ? "+" : "−"} |Passivo| {fmt(Math.abs(schemaTotals.SP_P))} = {fmt(sbilancio)} €
+              {Math.abs(sbilancio) < 1 ? " ✓ bilancio quadrato" : " — sbilancio rilevato"}
             </div>
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-center">
-              <p className="text-xs text-amber-600 font-medium">Conto Econ.</p>
-              <p className="text-lg font-bold text-amber-700">{schemaCounts.CE}</p>
-            </div>
-          </div>
+          </>
         )}
       </div>
 
