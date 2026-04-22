@@ -35,7 +35,7 @@ export async function mapBilancioWithGemini(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
+  const MODELS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest", "gemini-2.0-flash"];
 
   const compact = filtered.map((e) => ({
     c: e.account_code ?? "",
@@ -53,7 +53,7 @@ Voci da mappare: ${JSON.stringify(compact)}
 
 Rispondi SOLO con un JSON array senza markdown: [{"c":"...","voce_standard":"...","schema":"...","audit_area":"..."}]`;
 
-  let lastError: Error = new Error("No models available");
+  const attemptErrors: string[] = [];
 
   for (const modelName of MODELS) {
     try {
@@ -88,11 +88,12 @@ Rispondi SOLO con un JSON array senza markdown: [{"c":"...","voce_standard":"...
         };
       });
     } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
+      const msg = err instanceof Error ? err.message : String(err);
+      attemptErrors.push(`[${modelName}] ${msg}`);
     }
   }
 
-  throw lastError;
+  throw new Error(`Tutti i modelli Gemini hanno fallito:\n${attemptErrors.join("\n")}`);
 }
 
 export function enrichLocally(entry: ParsedEntry): EnrichedEntry {
