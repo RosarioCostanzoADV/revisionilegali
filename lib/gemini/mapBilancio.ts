@@ -53,6 +53,11 @@ Per ogni voce restituisci:
 - schema: "SP_A" (stato patrimoniale attivo) | "SP_P" (stato patrimoniale passivo) | "CE" (conto economico) | "MEMO"
 - audit_area: una tra [${VALID_AREAS.join("|")}]
 
+REGOLA IMPORTANTE per CE (conto economico): l'area distingue ricavi da costi.
+- Interessi attivi, proventi finanziari, dividendi, utili su cambi, plusvalenze → audit_area="ricavi" (sono componenti positive di reddito, vanno lato ricavi)
+- Interessi passivi, oneri finanziari, perdite su cambi, svalutazioni → audit_area="oneri_finanziari" (lato costi)
+Non mettere mai "oneri_finanziari" su una voce di provento/ricavo finanziario.
+
 Voci da mappare: ${JSON.stringify(compact)}
 
 Rispondi SOLO con un JSON array senza markdown: [{"c":"...","voce_standard":"...","schema":"...","audit_area":"..."}]`;
