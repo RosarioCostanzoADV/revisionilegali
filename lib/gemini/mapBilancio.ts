@@ -12,7 +12,7 @@ export interface EnrichedEntry extends ParsedEntry {
 
 const VALID_SCHEMAS: SchemaCivilistico[] = ["SP_A", "SP_P", "CE", "MEMO"];
 const VALID_AREAS = [
-  "immobilizzazioni", "rimanenze", "crediti", "altri_crediti", "liquidita",
+  "immobilizzazioni", "fondi_ammortamento", "rimanenze", "crediti", "altri_crediti", "liquidita",
   "patrimonio_netto", "debiti", "debiti_finanziari", "debiti_tributari",
   "tfr_fondi", "ricavi", "costi_personale", "acquisti_costi", "oneri_finanziari", "altri",
 ];
@@ -57,6 +57,8 @@ REGOLA IMPORTANTE per CE (conto economico): l'area distingue ricavi da costi.
 - Interessi attivi, proventi finanziari, dividendi, utili su cambi, plusvalenze → audit_area="ricavi" (sono componenti positive di reddito, vanno lato ricavi)
 - Interessi passivi, oneri finanziari, perdite su cambi, svalutazioni → audit_area="oneri_finanziari" (lato costi)
 Non mettere mai "oneri_finanziari" su una voce di provento/ricavo finanziario.
+
+REGOLA IMPORTANTE per FONDI AMMORTAMENTO: voci il cui nome inizia con "F.do amm", "Fondo ammortamento", "F.do ammort" sono fondi di ammortamento dei cespiti. Vanno SEMPRE in audit_area="fondi_ammortamento" e schema="SP_P" (rettifiche dell'attivo portate al passivo), MAI in "immobilizzazioni" anche se la descrizione contiene termini come "fabbricati", "marchi", "impianti", "macchine".
 
 Voci da mappare: ${JSON.stringify(compact)}
 
@@ -140,6 +142,7 @@ const AREA_TO_SCHEMA: Record<string, SchemaCivilistico> = {
   debiti_finanziari: "SP_P",
   debiti_tributari: "SP_P",
   tfr_fondi: "SP_P",
+  fondi_ammortamento: "SP_P",
   ricavi: "CE",
   costi_personale: "CE",
   acquisti_costi: "CE",

@@ -7,6 +7,20 @@ export interface AuditArea {
 
 export const AUDIT_AREAS: AuditArea[] = [
   {
+    key: "fondi_ammortamento",
+    label: "Fondi di Ammortamento",
+    keywords: [
+      "f.do amm", "f.do ammort", "fondo ammort", "fondo amm.to",
+      "fondi ammortamento", "f.di ammortamento",
+    ],
+    procedures: [
+      "□ Verificare la corretta applicazione delle aliquote di ammortamento per categoria di cespite",
+      "□ Riconciliare i fondi con il registro cespiti (valore storico − valore residuo)",
+      "□ Controllare gli utilizzi del fondo per dismissioni/cessioni dell'esercizio",
+      "□ Verificare la coerenza tra fondi e voci di attivo corrispondenti",
+    ],
+  },
+  {
     key: "immobilizzazioni",
     label: "Immobilizzazioni",
     keywords: [
