@@ -30,3 +30,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# obsidian
+.obsidian/
+
+# claude code
+.claude/
+
+# note e canvas locali
+*.canvas
+*.base
+2026-*.md
+
+# package-lock duplicati
+package-lock 2.json
