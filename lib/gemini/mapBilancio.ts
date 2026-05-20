@@ -160,15 +160,15 @@ Rispondi SOLO con un JSON array senza markdown: [{"c":"...","voce_standard":"...
         const key = e.account_code ?? String(i);
         const gm = byCode[key];
         if (!gm) return enrichLocally(e);
-        // Il layout PDF ha priorità sullo schema AI:
-        // se parsePDF ha rilevato la sezione, non la sovrascriviamo con l'AI.
+        // Il layout PDF ha priorità su schema AI e su audit_area AI per il CE.
         const schemaFromAI = (VALID_SCHEMAS.includes(gm.schema as SchemaCivilistico) ? gm.schema : null) as SchemaCivilistico | null;
         const schemaFromLayout = pdfSectionToSchema(e.pdf_section);
+        const aiArea = VALID_AREAS.includes(gm.audit_area) ? gm.audit_area : classifyAccount(e.account_name);
         return {
           ...e,
           voce_standard: gm.voce_standard || null,
           schema_civilistico: schemaFromLayout ?? schemaFromAI,
-          audit_area: VALID_AREAS.includes(gm.audit_area) ? gm.audit_area : classifyAccount(e.account_name),
+          audit_area: auditAreaFromPdfSection(e.pdf_section, aiArea),
         };
       });
     } catch (err) {
@@ -184,8 +184,21 @@ Rispondi SOLO con un JSON array senza markdown: [{"c":"...","voce_standard":"...
 function pdfSectionToSchema(pdf_section: string | undefined | null): SchemaCivilistico | null {
   if (pdf_section === "SP_A") return "SP_A";
   if (pdf_section === "SP_P") return "SP_P";
-  if (pdf_section === "CE") return "CE";
+  if (pdf_section === "CE" || pdf_section === "CE_C" || pdf_section === "CE_R") return "CE";
   return null;
+}
+
+/** Per le voci CE, restituisce l'audit_area corretta in base alla sezione PDF.
+ *  CE_R → "ricavi" (priorità assoluta sul classifyAccount)
+ *  CE_C → non-ricavi (se classifyAccount ha dato "ricavi" per errore, usa "acquisti_costi")
+ */
+function auditAreaFromPdfSection(
+  pdf_section: string | undefined | null,
+  fallbackArea: string,
+): string {
+  if (pdf_section === "CE_R") return "ricavi";
+  if (pdf_section === "CE_C" && fallbackArea === "ricavi") return "acquisti_costi";
+  return fallbackArea;
 }
 
 // Mappatura deterministica audit_area → schema_civilistico, usata come
@@ -211,17 +224,16 @@ const AREA_TO_SCHEMA: Record<string, SchemaCivilistico> = {
 
 export function enrichLocally(entry: ParsedEntry): EnrichedEntry {
   const area = classifyAccount(entry.account_name);
-  // pdf_section (rilevato dal layout del documento) ha priorità sulla
-  // classificazione per keyword: evita false discrepanze di quadratura
-  // quando conti ambigui (es. conto 35 – Erario) si trovano nello SP Attivo
-  // ma verrebbero classificati come debiti tributari dalle sole keyword.
+  // pdf_section ha priorità su classifyAccount per schema E per audit_area CE.
+  // Senza questo override, "vendita merci" → classifyAccount → "rimanenze"
+  // (per keyword "merci") e verrebbe conteggiata come costo invece che ricavo.
   const schemaFromLayout = pdfSectionToSchema(entry.pdf_section);
   const schemaFromArea = AREA_TO_SCHEMA[area] ?? null;
   return {
     ...entry,
     voce_standard: null,
     schema_civilistico: schemaFromLayout ?? schemaFromArea,
-    audit_area: area,
+    audit_area: auditAreaFromPdfSection(entry.pdf_section, area),
   };
 }
 

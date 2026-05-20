@@ -15,11 +15,22 @@ const DOC_TYPES = [
 ];
 
 const SCHEMA_LABELS: Record<string, { label: string; color: string }> = {
-  SP_A: { label: "SP Attivo",  color: "bg-blue-100 text-blue-700" },
-  SP_P: { label: "SP Passivo", color: "bg-purple-100 text-purple-700" },
-  CE:   { label: "Conto Ec.", color: "bg-amber-100 text-amber-700" },
-  MEMO: { label: "Memo",      color: "bg-gray-100 text-gray-500" },
+  SP_A:      { label: "SP Attivo",   color: "bg-blue-100 text-blue-700" },
+  SP_P:      { label: "SP Passivo",  color: "bg-purple-100 text-purple-700" },
+  CE:        { label: "Conto Ec.",   color: "bg-amber-100 text-amber-700" },
+  CE_RICAVI: { label: "CE Ricavi",   color: "bg-emerald-100 text-emerald-700" },
+  CE_COSTI:  { label: "CE Costi",    color: "bg-orange-100 text-orange-700" },
+  MEMO:      { label: "Memo",        color: "bg-gray-100 text-gray-500" },
 };
+
+/** Restituisce la chiave badge per schema+audit_area: distingue CE Ricavi da CE Costi. */
+function schemaBadgeKey(e: EnrichedEntry): string | null {
+  if (!e.schema_civilistico) return null;
+  if (e.schema_civilistico === "CE") {
+    return e.audit_area === "ricavi" ? "CE_RICAVI" : "CE_COSTI";
+  }
+  return e.schema_civilistico;
+}
 
 interface EnrichedEntry {
   account_code: string | null;
@@ -152,7 +163,11 @@ export function ImportWizard({
 
   const filteredEntries = schemaFilter === "tutti"
     ? entries
-    : entries.filter((e) => e.schema_civilistico === schemaFilter);
+    : schemaFilter === "CE_RICAVI"
+      ? entries.filter((e) => e.schema_civilistico === "CE" && e.audit_area === "ricavi")
+      : schemaFilter === "CE_COSTI"
+        ? entries.filter((e) => e.schema_civilistico === "CE" && e.audit_area !== "ricavi")
+        : entries.filter((e) => e.schema_civilistico === schemaFilter);
 
   const totalBalance = entries.reduce((s, e) => s + e.balance, 0);
 
@@ -318,21 +333,30 @@ export function ImportWizard({
       {/* Tabella voci */}
       <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
         {/* Filtro schema */}
-        <div className="flex gap-1 border-b border-gray-200 px-4 py-2 bg-gray-50">
-          {["tutti", "SP_A", "SP_P", "CE"].map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setSchemaFilter(s)}
-              className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
-                schemaFilter === s
-                  ? "bg-white border border-gray-300 text-gray-700 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {s === "tutti" ? `Tutti (${entries.length})` : `${SCHEMA_LABELS[s]?.label} (${schemaCounts[s as keyof typeof schemaCounts] ?? 0})`}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-1 border-b border-gray-200 px-4 py-2 bg-gray-50">
+          {(["tutti", "SP_A", "SP_P", "CE_RICAVI", "CE_COSTI"] as const).map((s) => {
+            let count: number;
+            if (s === "tutti") count = entries.length;
+            else if (s === "CE_RICAVI") count = entries.filter((e) => e.schema_civilistico === "CE" && e.audit_area === "ricavi").length;
+            else if (s === "CE_COSTI")  count = entries.filter((e) => e.schema_civilistico === "CE" && e.audit_area !== "ricavi").length;
+            else count = schemaCounts[s as keyof typeof schemaCounts] ?? 0;
+            const label = s === "tutti" ? `Tutti (${entries.length})` : `${SCHEMA_LABELS[s]?.label} (${count})`;
+            const isActive = schemaFilter === s || (s === "CE_RICAVI" && schemaFilter === "CE_RICAVI") || (s === "CE_COSTI" && schemaFilter === "CE_COSTI");
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSchemaFilter(s)}
+                className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+                  isActive
+                    ? "bg-white border border-gray-300 text-gray-700 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
 
         <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
@@ -348,7 +372,8 @@ export function ImportWizard({
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredEntries.map((e, i) => {
-                const schemaBadge = e.schema_civilistico ? SCHEMA_LABELS[e.schema_civilistico] : null;
+                const badgeKey = schemaBadgeKey(e);
+                const schemaBadge = badgeKey ? SCHEMA_LABELS[badgeKey] : null;
                 return (
                   <tr key={i} className="hover:bg-gray-50">
                     <td className="px-3 py-2 font-mono text-gray-400">{e.account_code ?? "—"}</td>

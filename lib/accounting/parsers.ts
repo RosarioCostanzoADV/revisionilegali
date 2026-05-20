@@ -1,6 +1,6 @@
 import { read as xlsxRead, utils as xlsxUtils } from "xlsx";
 
-export type PdfSection = "SP_A" | "SP_P" | "CE" | null;
+export type PdfSection = "SP_A" | "SP_P" | "CE_C" | "CE_R" | "CE" | null;
 
 export interface ParsedEntry {
   account_code: string | null;
@@ -220,9 +220,22 @@ function detectPageSectionType(text: string): "SP_BILANCIO" | "SP_A" | "SP_P" | 
 function inferSectionFromCode(code: string, name: string): PdfSection {
   const base = parseInt((code ?? "").split(".")[0] ?? "", 10);
   if (isNaN(base)) return null;
-  if (base >= 44) return "CE";
+
+  if (base >= 44) {
+    // Conto Economico — distingue CE_RICAVI da CE_COSTI tramite codice conto.
+    // Standard piano dei conti OIC:
+    //   Classe A (valore produzione / ricavi): 44–53
+    //   Classe B (costi produzione):           54–69
+    //   Classe C proventi finanziari (C.15-16): 73  → ricavi
+    //   Classe C oneri finanziari (C.17):       74–79 → costi
+    //   71–72 (imposte, oneri fiscali):          → costi
+    if ((base >= 44 && base <= 53) || base === 73) return "CE_R";
+    return "CE_C";
+  }
+
   if (base <= 21) return "SP_A";
-  // 22–43
+
+  // 22–43 → SP Passivo con override per conto 35 ambiguo
   if (base === 35) {
     const lower = name.toLowerCase();
     if (
@@ -284,16 +297,16 @@ function extractEntriesFromText(text: string, pageSection: "SP_BILANCIO" | "SP_A
       balance = parsedNums[parsedNums.length - 1]!;
     }
 
-    // Determina la sezione dal layout PDF
+    // Determina la sezione dal layout PDF.
+    // Per CE e SP_BILANCIO usa sempre inferSectionFromCode per ottenere
+    // la classificazione più granulare (CE_R/CE_C, SP_A/SP_P).
     let pdf_section: PdfSection;
     if (pageSection === "SP_A") {
       pdf_section = "SP_A";
     } else if (pageSection === "SP_P") {
       pdf_section = "SP_P";
-    } else if (pageSection === "CE") {
-      pdf_section = "CE";
     } else {
-      // SP_BILANCIO (2 colonne) o unknown → usa codice conto
+      // CE, SP_BILANCIO, null → usa codice conto per classificazione precisa
       pdf_section = inferSectionFromCode(code, name);
     }
 
