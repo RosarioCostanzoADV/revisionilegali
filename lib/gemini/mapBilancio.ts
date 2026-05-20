@@ -112,10 +112,14 @@ Rispondi SOLO con un JSON array senza markdown: [{"c":"...","voce_standard":"...
         const key = e.account_code ?? String(i);
         const gm = byCode[key];
         if (!gm) return enrichLocally(e);
+        // Il layout PDF ha priorità sullo schema AI:
+        // se parsePDF ha rilevato la sezione, non la sovrascriviamo con l'AI.
+        const schemaFromAI = (VALID_SCHEMAS.includes(gm.schema as SchemaCivilistico) ? gm.schema : null) as SchemaCivilistico | null;
+        const schemaFromLayout = pdfSectionToSchema(e.pdf_section);
         return {
           ...e,
           voce_standard: gm.voce_standard || null,
-          schema_civilistico: (VALID_SCHEMAS.includes(gm.schema as SchemaCivilistico) ? gm.schema : null) as SchemaCivilistico | null,
+          schema_civilistico: schemaFromLayout ?? schemaFromAI,
           audit_area: VALID_AREAS.includes(gm.audit_area) ? gm.audit_area : classifyAccount(e.account_name),
         };
       });
@@ -126,6 +130,14 @@ Rispondi SOLO con un JSON array senza markdown: [{"c":"...","voce_standard":"...
   }
 
   throw new Error(`Tutti i modelli Gemini hanno fallito:\n${attemptErrors.join("\n")}`);
+}
+
+/** Converte la sezione PDF in schema civilistico. */
+function pdfSectionToSchema(pdf_section: string | undefined | null): SchemaCivilistico | null {
+  if (pdf_section === "SP_A") return "SP_A";
+  if (pdf_section === "SP_P") return "SP_P";
+  if (pdf_section === "CE") return "CE";
+  return null;
 }
 
 // Mappatura deterministica audit_area → schema_civilistico, usata come
@@ -151,10 +163,16 @@ const AREA_TO_SCHEMA: Record<string, SchemaCivilistico> = {
 
 export function enrichLocally(entry: ParsedEntry): EnrichedEntry {
   const area = classifyAccount(entry.account_name);
+  // pdf_section (rilevato dal layout del documento) ha priorità sulla
+  // classificazione per keyword: evita false discrepanze di quadratura
+  // quando conti ambigui (es. conto 35 – Erario) si trovano nello SP Attivo
+  // ma verrebbero classificati come debiti tributari dalle sole keyword.
+  const schemaFromLayout = pdfSectionToSchema(entry.pdf_section);
+  const schemaFromArea = AREA_TO_SCHEMA[area] ?? null;
   return {
     ...entry,
     voce_standard: null,
-    schema_civilistico: AREA_TO_SCHEMA[area] ?? null,
+    schema_civilistico: schemaFromLayout ?? schemaFromArea,
     audit_area: area,
   };
 }

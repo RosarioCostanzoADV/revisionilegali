@@ -1,10 +1,14 @@
 import { read as xlsxRead, utils as xlsxUtils } from "xlsx";
 
+export type PdfSection = "SP_A" | "SP_P" | "CE" | null;
+
 export interface ParsedEntry {
   account_code: string | null;
   account_name: string;
   balance: number;
   balance_prev: number | null;
+  /** Sezione del PDF da cui proviene la voce (rilevata dal layout, non da keyword) */
+  pdf_section?: PdfSection;
 }
 
 // Converte numero in formato italiano (1.000,50) o inglese (1,000.50) in float
@@ -174,13 +178,68 @@ export function parseSpreadsheet(buffer: ArrayBuffer): ParsedEntry[] {
   return entries;
 }
 
-export async function parsePDF(buffer: ArrayBuffer): Promise<ParsedEntry[]> {
-  const { extractText } = await import("unpdf");
-  const { text: rawText } = await extractText(new Uint8Array(buffer), { mergePages: true });
-  if (!rawText) return [];
+// ── Rilevamento sezione PDF ───────────────────────────────────────────────────
 
-  const text = rawText.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ");
+/**
+ * Determina il tipo di pagina/sezione di un testo estratto da PDF.
+ * Restituisce:
+ *  "SP_BILANCIO" → pagina a 2 colonne con Attivo + Passivo
+ *  "SP_A"        → solo Stato Patrimoniale Attivo
+ *  "SP_P"        → solo Stato Patrimoniale Passivo/PN
+ *  "CE"          → Conto Economico
+ *  null          → non determinato
+ */
+function detectPageSectionType(text: string): "SP_BILANCIO" | "SP_A" | "SP_P" | "CE" | null {
+  const t = text.toLowerCase();
+  const hasCE    = /conto\s+econom/.test(t) || /sezione\s+(costi|ricavi)/.test(t);
+  const hasAttiv = /attivit[aà]|sezione\s+attiv/.test(t);
+  const hasPassiv = /passivit[aà]|sezione\s+passiv|patrimonio\s+netto/.test(t);
+  if (hasCE) return "CE";
+  if (hasAttiv && hasPassiv) return "SP_BILANCIO";
+  if (hasAttiv) return "SP_A";
+  if (hasPassiv) return "SP_P";
+  return null;
+}
 
+/**
+ * Per i PDF a 4 sezioni italiani (bilancio di verifica), determina la sezione
+ * di appartenenza di una voce usando il CODICE CONTO come criterio primario.
+ *
+ * Regola base (Piano dei Conti CEE/OIC):
+ *   01–21  →  SP Attivo
+ *   22–43  →  SP Passivo + PN  (con override per conto 35)
+ *   44–99  →  Conto Economico
+ *
+ * Il conto 35 (CONTI ERARIALI) è ambiguo: può stare sia nell'Attivo che nel
+ * Passivo. Lo distinguiamo in base alla descrizione:
+ *   - acconti imposte (IRES/IRAP)  → SP_A (credito tributario)
+ *   - liquidazione IVA              → SP_A (credito IVA)
+ *   - IVA su acquisti               → SP_A (credito IVA deducibile)
+ *   - tutto il resto                → SP_P (debito tributario)
+ */
+function inferSectionFromCode(code: string, name: string): PdfSection {
+  const base = parseInt((code ?? "").split(".")[0] ?? "", 10);
+  if (isNaN(base)) return null;
+  if (base >= 44) return "CE";
+  if (base <= 21) return "SP_A";
+  // 22–43
+  if (base === 35) {
+    const lower = name.toLowerCase();
+    if (
+      lower.includes("accont") ||
+      lower.includes("liquidazione iva") ||
+      lower.includes("iva su acquisti") ||
+      lower.includes("credito iva") ||
+      lower.includes("credito d'imposta")
+    ) return "SP_A";
+    return "SP_P";
+  }
+  return "SP_P";
+}
+
+// ── Estrazione voci da testo ─────────────────────────────────────────────────
+
+function extractEntriesFromText(text: string, pageSection: "SP_BILANCIO" | "SP_A" | "SP_P" | "CE" | null): ParsedEntry[] {
   const SKIP_NAME = /^(Conto|Descrizione|Saldo|Rettifiche|Part|Csp|Data|Pagina|BILANCIO|STATO|CONTO|ATTIVITA|PASSIVITA|COSTI|RICAVI|Totale|Utile|reddito|SEZIONI|ESERCIZIO|COMPETENZA|PATRIMONIALE|ECONOMICO|Mar)$/i;
   const CODE_RE = /\b(\d{1,2}(?:\.\d{2}){0,3}|\d{5,6})\s+(?=[A-Za-zÀ-ÿ])/g;
 
@@ -190,11 +249,10 @@ export async function parsePDF(buffer: ArrayBuffer): Promise<ParsedEntry[]> {
   while ((cm = CODE_RE.exec(text)) !== null) {
     positions.push({ code: cm[1]!, start: cm.index, descStart: cm.index + cm[0].length });
   }
-
   if (positions.length === 0) return [];
 
-  const entries: ParsedEntry[] = [];
   const IT_NUM_RE = /\d{1,3}(?:\.\d{3})*,\d{2}-?/g;
+  const entries: ParsedEntry[] = [];
 
   for (let i = 0; i < positions.length; i++) {
     const { code, descStart } = positions[i]!;
@@ -211,12 +269,6 @@ export async function parsePDF(buffer: ArrayBuffer): Promise<ParsedEntry[]> {
     const nums = [...segment.matchAll(IT_NUM_RE)];
     if (!nums.length) continue;
 
-    // Nel bilancio italiano a 3 colonne (saldo_non_rettif, rettifiche,
-    // saldo_finale) quando saldo_finale = 0 la cella viene lasciata vuota.
-    // Se i primi due numeri si compensano esattamente, il conto è azzerato
-    // dalle rettifiche (tipico caso "IVA su acquisti" compensata con la
-    // liquidazione). Senza questo controllo prenderemmo la rettifica come
-    // saldo finale e il totale risulterebbe gonfiato.
     const parsedNums = nums.map((n) => parseNumber(n[0]!));
     let balance: number;
     if (
@@ -228,10 +280,53 @@ export async function parsePDF(buffer: ArrayBuffer): Promise<ParsedEntry[]> {
     } else {
       balance = parsedNums[parsedNums.length - 1]!;
     }
-    entries.push({ account_code: code, account_name: name, balance, balance_prev: null });
+
+    // Determina la sezione dal layout PDF
+    let pdf_section: PdfSection;
+    if (pageSection === "SP_A") {
+      pdf_section = "SP_A";
+    } else if (pageSection === "SP_P") {
+      pdf_section = "SP_P";
+    } else if (pageSection === "CE") {
+      pdf_section = "CE";
+    } else {
+      // SP_BILANCIO (2 colonne) o unknown → usa codice conto
+      pdf_section = inferSectionFromCode(code, name);
+    }
+
+    entries.push({ account_code: code, account_name: name, balance, balance_prev: null, pdf_section });
   }
 
-  return keepHierarchyLeaves(entries);
+  return entries;
+}
+
+// ── Parser PDF principale ─────────────────────────────────────────────────────
+
+export async function parsePDF(buffer: ArrayBuffer): Promise<ParsedEntry[]> {
+  const { extractText } = await import("unpdf");
+
+  // Estrazione per pagina: permette di rilevare la sezione di ogni pagina
+  let pages: string[] = [];
+  try {
+    const perPage = await extractText(new Uint8Array(buffer), { mergePages: false });
+    const raw = (perPage as { text: string | string[] }).text;
+    pages = Array.isArray(raw) ? raw : [raw ?? ""];
+  } catch {
+    // Fallback: merge tutto in una pagina
+    const merged = await extractText(new Uint8Array(buffer), { mergePages: true });
+    pages = [(merged as { text: string }).text ?? ""];
+  }
+
+  const allEntries: ParsedEntry[] = [];
+
+  for (const rawPageText of pages) {
+    if (!rawPageText?.trim()) continue;
+    const text = rawPageText.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ");
+    const pageSection = detectPageSectionType(text);
+    allEntries.push(...extractEntriesFromText(text, pageSection));
+  }
+
+  return keepHierarchyLeaves(allEntries);
 }
 
 // Bilancio di verifica italiano: i codici puntati (es. 03.01.07) formano una

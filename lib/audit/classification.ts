@@ -26,8 +26,10 @@ export const AUDIT_AREAS: AuditArea[] = [
     keywords: [
       "immobilizzaz", "attrezzatur", "macchinari", "fabbricat", "terreni",
       "avviamento", "brevett", "marchi", "software", "licenze", "concessioni",
-      "impianti", "cespiti", "costruzioni", "mobili", "arredi", "veicoli",
+      "impianti", "impianto", "cespiti", "costruzioni", "mobili", "arredi", "veicoli",
       "automezzi", "autoveicoli", "leasing finanziario", "beni in leasing",
+      "costi di impianto", "costi d'impianto", "costi d impianto",
+      "beni immateriali", "diritti brevett", "diritti utenza",
     ],
     procedures: [
       "□ Verificare l'esistenza fisica dei cespiti principali tramite ispezione",
