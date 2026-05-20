@@ -191,3 +191,21 @@ Ogni deviazione aumenta il rischio di errori.
 ✔ File sincronizzato con repository  
 ✔ Modifiche tracciate via Git  
 
+
+
+## 🌐 STRATEGIA RUNTIME AI & LOGICA (STEP 1 & 3)
+
+### Protocollo Import Bilancio (Efficienza Token)
+1. **Fase 1 (Zero Token)**: Il backend usa librerie locali (es. pdf-parse) per estrarre il testo grezzo dal PDF.
+2. **Fase 2 (Filtro)**: Uno script pulisce il testo cercando solo keyword contabili (Attivo, Ricavi, ecc.).
+3. **Fase 3 (Mapping AI)**: Si invia a Gemini 1.5 Flash SOLO il testo filtrato.
+   - *Prompt*: "Mappa queste voci in JSON {voce_standard: valore}. Sii sintetico."
+4. **Fase 4 (Database)**: Il JSON viene salvato su Supabase per evitare chiamate duplicate.
+
+### Protocollo Campionamento (Deterministic Logic)
+- **REGOLA FISSA**: Il campionamento NON è generato dall'AI.
+- **Sviluppo**: Claude Sonnet deve scrivere funzioni TypeScript/Python pure che applicano le formule ISA Italia.
+- **Ruolo AI**: L'AI interviene solo alla fine per generare il "Commento Professionale" ai risultati del campione basandosi sui rischi rilevati.
+
+### UX Architecture (Anti-Macchinosità)
+- Ogni modulo deve rispettare la regola dei **"3 Clic"**: l'utente deve poter arrivare dalla Dashboard Annuale a qualsiasi carta di lavoro trimestrale in massimo 3 clic.

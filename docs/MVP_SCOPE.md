@@ -129,3 +129,22 @@ Questo è il disegno corretto per un SaaS come il tuo.
 Il prossimo passo giusto è trasformare tutto questo in una struttura ancora più operativa:
 
 **una tabella schermata-per-schermata con: nome, scopo, ruolo che la vede, componenti UI, azioni, dati richiesti, dipendenze backend e priorità MVP**.
+
+
+
+## 7. Schermate e Funzioni Prioritarie MVP 1.0 (AGGIORNATO)
+
+### Area Revisione Intelligente (Core v1.0)
+- **Smart Mapping Bilancio (AI-Driven)**: Import PDF/Excel con estrazione testo locale e mappatura automatica alle voci civilistiche tramite Gemini Free.
+- **Dashboard di Consolidamento Annuale (Global Audit View)**: Vista "schiacciata" che aggrega i 4 trimestri in un'unica schermata per monitorare l'andamento annuale, i rischi e le scadenze senza cambiare contesto.
+- **Modulo Campionamento ISA Italia**: Calcolatore deterministico (non AI) per campionamento monetario, sistematico e casuale basato su Materialità Operativa.
+- **Calcolo Materialità Automatico**: Generazione istantanea della carta di lavoro "Materialità" non appena i dati di bilancio sono validati.
+
+### 8. Ordine di progettazione UI (Revisionato per Antigravity)
+1. Login + Onboarding
+2. **Dashboard di Consolidamento (Vista Annuale)** <- *Priorità per ridurre i clic*
+3. Gestione Aziende & Incarichi
+4. Workflow Trimestrale (Dettaglio operativo)
+5. **Centro Import & Validazione AI** (Mapping Bilancio)
+6. **Modulo Campionamento & Carte di Lavoro**
+7. Rilievi, Bozze e Chiusura
