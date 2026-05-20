@@ -46,6 +46,7 @@ const patchSchema = z.object({
   ]).optional(),
   content: z.string().max(20000).nullable().optional(),
   status: z.enum(["bozza", "in_revisione", "approvata"]).optional(),
+  reopen_note: z.string().max(500).optional(),
 });
 
 export async function PATCH(
@@ -61,16 +62,11 @@ export async function PATCH(
   // Recupera carta per verificare lo stato attuale
   const { data: wp } = await supabase
     .from("working_papers")
-    .select("id, status, prepared_by, tenant_id")
+    .select("id, status, prepared_by, tenant_id, content")
     .eq("id", id)
     .maybeSingle();
 
   if (!wp) return NextResponse.json({ error: "Non trovato" }, { status: 404 });
-
-  // Carta approvata: nessuna modifica consentita
-  if (wp.status === "approvata") {
-    return NextResponse.json({ error: "Carta approvata: non modificabile." }, { status: 403 });
-  }
 
   const body = await request.json();
   const parsed = patchSchema.safeParse(body);
@@ -80,6 +76,19 @@ export async function PATCH(
 
   const isOwnerOrRevisor = ["tenant_owner", "revisor"].includes(profile.role);
   const isPreparer = wp.prepared_by === user.id;
+
+  // Riapertura carta approvata: solo owner/revisor, con nota obbligatoria
+  if (wp.status === "approvata") {
+    if (!isOwnerOrRevisor) {
+      return NextResponse.json({ error: "Carta approvata: solo il revisore o titolare può riaprirla." }, { status: 403 });
+    }
+    if (parsed.data.status !== "in_revisione") {
+      return NextResponse.json({ error: "Carta approvata: l'unica transizione consentita è → in revisione." }, { status: 403 });
+    }
+    if (!parsed.data.reopen_note?.trim()) {
+      return NextResponse.json({ error: "Specificare il motivo della riapertura." }, { status: 400 });
+    }
+  }
 
   // Solo il preparer (in bozza) o owner/revisor possono modificare
   if (!isPreparer && !isOwnerOrRevisor) {
@@ -96,21 +105,28 @@ export async function PATCH(
     return NextResponse.json({ error: "Carta in revisione: solo il revisore può modificarla." }, { status: 403 });
   }
 
+  const now = new Date().toISOString();
+  const { reopen_note, ...patchFields } = parsed.data;
   const updateData: Record<string, unknown> = {
-    ...parsed.data,
-    updated_at: new Date().toISOString(),
+    ...patchFields,
+    updated_at: now,
   };
 
   // Se approvazione, salva chi ha approvato e quando
   if (parsed.data.status === "approvata") {
     updateData.reviewed_by = user.id;
-    updateData.reviewed_at = new Date().toISOString();
+    updateData.reviewed_at = now;
   }
 
-  // Se si rimanda in bozza, azzera revisore
-  if (parsed.data.status === "bozza") {
+  // Se rimanda in bozza o riapre, azzera revisore e appende nota di riapertura
+  if (parsed.data.status === "bozza" || (wp.status === "approvata" && parsed.data.status === "in_revisione")) {
     updateData.reviewed_by = null;
     updateData.reviewed_at = null;
+    if (reopen_note) {
+      const existing = (typeof patchFields.content === "string" ? patchFields.content : null) ?? wp.content ?? "";
+      const footer = `\n\n---\n[RIAPERTURA ${now.substring(0, 10)}] Motivo: ${reopen_note}`;
+      updateData.content = existing + footer;
+    }
   }
 
   const { error } = await supabase

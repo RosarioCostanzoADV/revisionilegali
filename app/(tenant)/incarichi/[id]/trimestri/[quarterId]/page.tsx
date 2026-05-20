@@ -7,6 +7,7 @@ import { CarteSection } from "./CarteSection";
 import { RilieviSection } from "./RilieviSection";
 import { VigilanzaSection } from "./VigilanzaSection";
 import { ImportSection } from "./ImportSection";
+import { VerbaliSection } from "./VerbaliSection";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,7 @@ export default async function QuarterDetailPage({
     { data: findings },
     { data: vigilanzaItems },
     { data: accountingImports },
+    { data: quarterDrafts },
   ] = await Promise.all([
     supabase
       .from("quarters")
@@ -90,6 +92,11 @@ export default async function QuarterDetailPage({
     supabase
       .from("accounting_imports")
       .select("id, filename, period_label, row_count, doc_type, created_at, uploaded_by")
+      .eq("quarter_id", quarterId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("drafts")
+      .select("id, title, type, status, created_at")
       .eq("quarter_id", quarterId)
       .order("created_at", { ascending: false }),
   ]);
@@ -196,6 +203,15 @@ export default async function QuarterDetailPage({
         assignmentId={assignmentId}
         initialFindings={findings ?? []}
         raisedByNames={userNames}
+      />
+
+      {/* Verbali trimestrali */}
+      <VerbaliSection
+        quarterId={quarterId}
+        assignmentId={assignmentId}
+        quarterLabel={`${QUARTER_LABELS[quarter.quarter]} ${assignment.year}`}
+        initialDrafts={quarterDrafts ?? []}
+        canCreate={canEdit}
       />
 
       {/* Vigilanza — adempimenti periodici del collegio */}

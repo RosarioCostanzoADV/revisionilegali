@@ -156,21 +156,32 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const assignment_id = searchParams.get("assignment_id");
-  if (!assignment_id) return NextResponse.json({ error: "assignment_id required" }, { status: 400 });
+  const quarter_id = searchParams.get("quarter_id");
+
+  if (!assignment_id && !quarter_id) {
+    return NextResponse.json({ error: "assignment_id or quarter_id required" }, { status: 400 });
+  }
 
   const { supabase } = ctx;
-  const { data, error } = await supabase
+  let query = supabase
     .from("drafts")
-    .select("id, title, type, status, created_by, created_at, updated_at")
-    .eq("assignment_id", assignment_id)
+    .select("id, title, type, status, created_by, created_at, updated_at, quarter_id")
     .order("created_at", { ascending: false });
 
+  if (quarter_id) {
+    query = query.eq("quarter_id", quarter_id);
+  } else {
+    query = query.eq("assignment_id", assignment_id!).is("quarter_id", null);
+  }
+
+  const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data ?? []);
 }
 
 const createSchema = z.object({
   assignment_id: z.string().uuid(),
+  quarter_id: z.string().uuid().optional(),
   title: z.string().min(1).max(300),
   type: z.enum(["relazione_revisione", "lettera_direzione", "verbale_collegio", "verbale_sindaco", "altro"]),
 });

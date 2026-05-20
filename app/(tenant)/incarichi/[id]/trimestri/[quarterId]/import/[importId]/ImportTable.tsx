@@ -46,7 +46,9 @@ export function ImportTable({
     const matchText =
       !filter ||
       e.account_name.toLowerCase().includes(filter.toLowerCase()) ||
-      (e.account_code ?? "").toLowerCase().includes(filter.toLowerCase());
+      (e.account_code ?? "").toLowerCase().includes(filter.toLowerCase()) ||
+      fmt(e.balance).includes(filter) ||
+      e.balance.toString().includes(filter.replace(",", "."));
 
     const pct =
       e.balance_prev && e.balance_prev !== 0

@@ -50,6 +50,8 @@ export function WorkingPaperEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [reopenMode, setReopenMode] = useState(false);
+  const [reopenNote, setReopenNote] = useState("");
 
   const st = STATUS_STYLES[status] ?? STATUS_STYLES.bozza!;
   const isLocked = status === "approvata";
@@ -91,6 +93,12 @@ export function WorkingPaperEditor({
   async function handleSendBack() {
     const ok = await patch({ status: "bozza" });
     if (ok) { setStatus("bozza"); setSaved(true); }
+  }
+
+  async function handleReopen() {
+    if (!reopenNote.trim()) { setError("Inserisci il motivo della riapertura."); return; }
+    const ok = await patch({ status: "in_revisione", reopen_note: reopenNote });
+    if (ok) { setStatus("in_revisione"); setReopenMode(false); setReopenNote(""); setSaved(true); }
   }
 
   const isDirty =
@@ -222,10 +230,45 @@ export function WorkingPaperEditor({
         </div>
       </div>
 
-      {/* Carta approvata — banner */}
+      {/* Carta approvata — banner + riapertura */}
       {isLocked && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Questa carta è stata approvata e non può essere modificata.
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <p className="text-sm text-emerald-800">
+              Carta approvata — solo il revisore o titolare può riaprirla per modifiche.
+            </p>
+            {isOwnerOrRevisor && !reopenMode && (
+              <button
+                type="button"
+                onClick={() => { setReopenMode(true); setError(null); }}
+                className="text-sm font-medium text-emerald-700 underline hover:text-emerald-900"
+              >
+                Riapri per modifica
+              </button>
+            )}
+          </div>
+          {reopenMode && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-emerald-900">
+                Motivo della riapertura <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={reopenNote}
+                onChange={(e) => setReopenNote(e.target.value)}
+                rows={2}
+                placeholder="Es: Correzione importo voce X, aggiornamento documentazione..."
+                className="w-full rounded-md border border-emerald-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <div className="flex gap-2">
+                <Button type="button" loading={saving} onClick={handleReopen}>
+                  Conferma riapertura
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => { setReopenMode(false); setReopenNote(""); setError(null); }}>
+                  Annulla
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

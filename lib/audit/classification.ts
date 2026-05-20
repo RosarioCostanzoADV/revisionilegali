@@ -230,6 +230,7 @@ export const AUDIT_AREAS: AuditArea[] = [
       "godimento beni di terzi", "noleggio", "utenze", "affitti", "locazioni",
       "manutenzione", "consulenze", "pubblicità", "spese generali",
       "costi per servizi", "spese amministrative",
+      "autofattur", "reverse charge", "inversione contabile", "autoaddebito",
     ],
     procedures: [
       "□ Verificare il cut-off degli acquisti a fine periodo",
