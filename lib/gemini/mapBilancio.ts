@@ -47,18 +47,66 @@ export async function mapBilancioWithGemini(
     v: e.balance,
   }));
 
-  const prompt = `Sei un esperto contabile italiano. Mappa le seguenti voci di un bilancio di verifica italiano secondo il codice civile (artt. 2424-2425 c.c.).
+  const prompt = `Sei un esperto contabile italiano specializzato in revisione legale. Mappa le seguenti voci di un bilancio di verifica italiano secondo il codice civile (artt. 2424-2425 c.c.).
 Per ogni voce restituisci:
-- voce_standard: la voce civilistica (es. "B.II.2 Impianti e macchinari", "A.1 Ricavi delle vendite")
+- voce_standard: la voce civilistica esatta (vedi regole sotto)
 - schema: "SP_A" (stato patrimoniale attivo) | "SP_P" (stato patrimoniale passivo) | "CE" (conto economico) | "MEMO"
 - audit_area: una tra [${VALID_AREAS.join("|")}]
 
-REGOLA IMPORTANTE per CE (conto economico): l'area distingue ricavi da costi.
-- Interessi attivi, proventi finanziari, dividendi, utili su cambi, plusvalenze → audit_area="ricavi" (sono componenti positive di reddito, vanno lato ricavi)
-- Interessi passivi, oneri finanziari, perdite su cambi, svalutazioni → audit_area="oneri_finanziari" (lato costi)
-Non mettere mai "oneri_finanziari" su una voce di provento/ricavo finanziario.
+═══ REGOLE VOCE STANDARD — IMMOBILIZZAZIONI IMMATERIALI (SP Attivo B.I) ═══
+- "Costi di impianto", "costi d'impianto", "costi di ampliamento" → B.I.1 Costi di impianto e di ampliamento
+- "Costi di ricerca", "costi di sviluppo", "pubblicità" → B.I.2 Costi di ricerca, di sviluppo e di pubblicità
+- "Diritti brevetto", "brevetti", "opere dell'ingegno", "software", "licenze software" → B.I.3 Diritti di brevetto industriale e diritti di utilizzazione delle opere dell'ingegno
+- "Marchi", "concessioni", "licenze" → B.I.4 Concessioni, licenze, marchi e diritti simili
+- "Avviamento" → B.I.5 Avviamento
+- "Costi pluriennali", "altri costi immateriali" → B.I.7 Altre immobilizzazioni immateriali
 
-REGOLA IMPORTANTE per FONDI AMMORTAMENTO: voci il cui nome inizia con "F.do amm", "Fondo ammortamento", "F.do ammort" sono fondi di ammortamento dei cespiti. Vanno SEMPRE in audit_area="fondi_ammortamento" e schema="SP_P" (rettifiche dell'attivo portate al passivo), MAI in "immobilizzazioni" anche se la descrizione contiene termini come "fabbricati", "marchi", "impianti", "macchine".
+═══ REGOLE VOCE STANDARD — IMMOBILIZZAZIONI MATERIALI (SP Attivo B.II) ═══
+- "Terreni", "fabbricati", "immobili" → B.II.1 Terreni e fabbricati
+- "Impianti produttivi", "macchinari produttivi" → B.II.2 Impianti e macchinari
+- "Attrezzature industriali", "attrezzature commerciali" → B.II.3 Attrezzature industriali e commerciali
+- "Macchine d'ufficio", "computer", "hardware", "telefonia", "arredamento", "mobili", "veicoli", "automezzi", "altre immobilizzazioni materiali" → B.II.4 Altri beni (NON B.II.2)
+- "Immobilizzazioni in corso" → B.II.5 Immobilizzazioni materiali in corso e acconti
+
+═══ REGOLE VOCE STANDARD — CREDITI ATTIVO CIRCOLANTE (SP Attivo C.II) ═══
+- "Clienti", "crediti verso clienti", "crediti commerciali" → C.II.1 Crediti verso clienti
+- "Crediti tributari", "credito IVA", "erario c/IVA", "erario c/liquidazione IVA", "acconti IRES", "acconti IRAP", "crediti verso erario" → C.II.5-bis Crediti tributari
+  ATTENZIONE: se la voce è in SP Attivo (schema="SP_A"), usa SEMPRE C.II.5-bis, mai D.12 o voci passive.
+- "Anticipi a fornitori" → C.II.5 Altri crediti
+- "Depositi cauzionali attivi" → C.II.5 Altri crediti
+
+═══ REGOLE VOCE STANDARD — RATEI E RISCONTI (SP Attivo D) ═══
+- "Risconti attivi", "ratei attivi" → D Ratei e risconti attivi
+  ATTENZIONE: NON usare C.IV.2 per ratei/risconti. C.IV riguarda disponibilità liquide (banche, cassa).
+
+═══ REGOLE VOCE STANDARD — DISPONIBILITÀ LIQUIDE (SP Attivo C.IV) ═══
+- "Banca", "cassa", "c/c", "conto corrente", "depositi bancari" → C.IV.2 Depositi bancari e postali
+- "Cassa" → C.IV.1 Depositi in cassa
+
+═══ REGOLE VOCE STANDARD — PASSIVO (SP Passivo) ═══
+- "Capitale sociale" → A.I Capitale
+- "Riserva legale" → A.IV Riserva legale
+- "Altre riserve" → A.VII Altre riserve
+- "Utili portati a nuovo", "risultati portati a nuovo" → A.VIII Utili (perdite) portati a nuovo
+- "Utile del periodo", "utile d'esercizio" → A.IX Utile (perdita) dell'esercizio
+- "Finanziamenti bancari", "mutui", "anticipi bancari", "Ri.Ba" → D.4 Debiti verso banche
+- "Fornitori" → D.7 Debiti verso fornitori
+- "Anticipi da clienti", "acconti da clienti", "fondi spese clienti" → D.6 Acconti (NON D.7 fornitori)
+- "Debiti tributari", "erario c/imposte da versare", "IVA a debito", "IRES da versare", "IRAP da versare", "bollo su fatture" → D.12 Debiti tributari
+- "Debiti previdenziali", "INPS", "INAIL", "ritenute da versare" → D.13 Debiti verso istituti previdenziali
+- "Soci c/utili", "utili da distribuire" → D.14 Altri debiti
+
+═══ REGOLE VOCE STANDARD — FONDI AMMORTAMENTO ═══
+- Voci con "F.do amm", "Fondo ammortamento", "F.do ammort" → schema="SP_P", audit_area="fondi_ammortamento"
+- voce_standard per i fondi: es. "Fondo amm. B.I.1 Costi di impianto", "Fondo amm. B.II.1 Fabbricati"
+  Indica sempre il cespite corrispondente.
+
+═══ REGOLE CONTO ECONOMICO ═══
+- Ricavi delle vendite, proventi, interessi attivi, dividendi, utili su cambi → audit_area="ricavi"
+- Acquisti, servizi, trasporti, consulenze, spese generali → audit_area="acquisti_costi"
+- Salari, stipendi, contributi → audit_area="costi_personale"
+- Interessi passivi, perdite su cambi, svalutazioni → audit_area="oneri_finanziari"
+NON classificare mai "Trasporti su vendite" o simili come ricavi: sono costi di servizio.
 
 Voci da mappare: ${JSON.stringify(compact)}
 
