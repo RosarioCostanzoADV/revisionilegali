@@ -264,7 +264,10 @@ function extractEntriesFromText(text: string, pageSection: "SP_BILANCIO" | "SP_A
 
     const name = segment.substring(0, firstNumMatch.index).trim().replace(/\s+/g, " ");
     if (!name || name.length < 2) continue;
-    if (SKIP_NAME.test(name.split(" ")[0]!)) continue;
+    // Controllo sul nome COMPLETO (non solo la prima parola): evita di saltare
+    // voci come "Costi di impianto" o "Ricavi da servizi" che iniziano con
+    // parole uguali alle intestazioni di sezione (COSTI, RICAVI, ecc.)
+    if (SKIP_NAME.test(name)) continue;
 
     const nums = [...segment.matchAll(IT_NUM_RE)];
     if (!nums.length) continue;

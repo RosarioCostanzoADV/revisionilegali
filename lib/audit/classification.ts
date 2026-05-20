@@ -195,9 +195,12 @@ export const AUDIT_AREAS: AuditArea[] = [
     key: "ricavi",
     label: "Ricavi e Proventi",
     keywords: [
-      "ricavi", "vendite", "prestazioni di servizi", "proventi", "corrispettivi",
-      "fatturato", "ricavi delle vendite", "ricavi da servizi",
-      "contributi in conto esercizio", "altri ricavi", "plusvalenze",
+      "ricavi", "vendita", "ricavi delle vendite", "ricavi da servizi",
+      "prestazioni di servizi", "proventi", "corrispettivi",
+      "fatturato", "contributi in conto esercizio", "altri ricavi", "plusvalenze",
+      // proventi finanziari: vanno nei ricavi, non negli oneri
+      "interessi attivi", "proventi finanziari", "dividendi", "utili su cambi",
+      "rivalutazione partecipazioni",
     ],
     procedures: [
       "□ Verificare il cut-off dei ricavi a fine periodo (ultime fatture/DDT)",
@@ -244,11 +247,10 @@ export const AUDIT_AREAS: AuditArea[] = [
   },
   {
     key: "oneri_finanziari",
-    label: "Oneri e Proventi Finanziari",
+    label: "Oneri Finanziari",
     keywords: [
-      "interessi passivi", "oneri finanziari", "interessi attivi",
-      "proventi finanziari", "dividendi", "utili su cambi", "perdite su cambi",
-      "svalutazione partecipazioni", "rivalutazione partecipazioni",
+      "interessi passivi", "oneri finanziari",
+      "perdite su cambi", "svalutazione partecipazioni",
     ],
     procedures: [
       "□ Riconciliare gli interessi passivi con i prospetti di ammortamento dei finanziamenti",

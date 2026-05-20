@@ -146,7 +146,9 @@ export function ImportWizard({
   const utilePeriodoSP = schemaTotals.SP_A - schemaTotals.SP_P;
   const utilePeriodoCE = ricaviTotal - costiTotal;
   const discrepanzaQuadratura = utilePeriodoSP - utilePeriodoCE;
-  const tollerazaQuadratura = Math.max(100, Math.abs(schemaTotals.SP_A) * 0.01);
+  // Tolleranza strettissima: solo arrotondamenti float (<0,05 €).
+  // NON usare percentuali del totale — anche 1 € di discrepanza è un errore.
+  const tollerazaQuadratura = 0.05;
 
   const filteredEntries = schemaFilter === "tutti"
     ? entries
@@ -288,19 +290,27 @@ export function ImportWizard({
                 <p className="text-xs text-amber-600">{schemaCounts.CE} voci</p>
               </div>
             </div>
-            <div className={`mt-2 rounded-md border px-3 py-2 text-sm ${Math.abs(discrepanzaQuadratura) < tollerazaQuadratura ? "border-green-200 bg-green-50 text-green-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
-              <strong>Quadratura bilancio di verifica:</strong>
-              <div className="mt-1 grid grid-cols-2 gap-2 text-xs">
-                <div>Utile periodo da SP (Attivo − Passivo+PN): <span className="tabular-nums font-semibold">{fmt(utilePeriodoSP)} €</span></div>
-                <div>Utile periodo da CE (Ricavi − Costi): <span className="tabular-nums font-semibold">{fmt(utilePeriodoCE)} €</span></div>
-              </div>
-              <div className="mt-1">
-                Discrepanza: <span className="tabular-nums font-semibold">{fmt(discrepanzaQuadratura)} €</span>
-                {Math.abs(discrepanzaQuadratura) < tollerazaQuadratura
-                  ? " ✓ bilancio quadrato (l'utile del periodo emerge coerentemente da SP e CE)"
-                  : " ⚠ discrepanza rilevata — probabile classificazione AI imprecisa su 1-2 voci"}
-              </div>
-            </div>
+            {(() => {
+              const quadrato = Math.abs(discrepanzaQuadratura) < tollerazaQuadratura;
+              return (
+                <div className={`mt-2 rounded-md border px-3 py-2 text-sm ${quadrato ? "border-green-200 bg-green-50 text-green-700" : "border-red-200 bg-red-50 text-red-700"}`}>
+                  <strong>Quadratura bilancio di verifica:</strong>
+                  <div className="mt-1 grid grid-cols-2 gap-2 text-xs">
+                    <div>Utile SP (Attivo − Passivo+PN): <span className="tabular-nums font-semibold">{fmt(utilePeriodoSP)} €</span></div>
+                    <div>Utile CE (Ricavi − Costi): <span className="tabular-nums font-semibold">{fmt(utilePeriodoCE)} €</span></div>
+                  </div>
+                  <div className="mt-1 font-semibold">
+                    {quadrato ? (
+                      <span>✓ Bilancio quadrato — discrepanza: {fmt(discrepanzaQuadratura)} €</span>
+                    ) : (
+                      <span>
+                        ✗ Discrepanza rilevata: {fmt(discrepanzaQuadratura)} € — verificare voci mancanti o classificate in modo errato.
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </>
         )}
       </div>
