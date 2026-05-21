@@ -1,0 +1,383 @@
+version: '3.9'
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  auth_db_data:
+  tenant_db_data:
+  company_db_data:
+  assignment_db_data:
+  audit_db_data:
+  document_db_data:
+  accounting_db_data:
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # API GATEWAY
+  # ---------------------------------------------------------------------------
+  api-gateway:
+    image: nginx:1.25-alpine
+    container_name: api-gateway
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth-service
+      - tenant-service
+      - company-service
+      - assignment-service
+      - audit-service
+      - document-service
+      - accounting-service
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # FRONTEND
+  # ---------------------------------------------------------------------------
+  frontend:
+    build: ../
+    container_name: frontend
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://api-gateway:80
+    ports:
+      - "3000:3000"
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # AUTH SERVICE  (porta 3001 / db 5433)
+  # ---------------------------------------------------------------------------
+  auth-service:
+    build: ../services/auth
+    container_name: auth-service
+    environment:
+      - PORT=3001
+      - DB_HOST=auth_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=auth_db
+      - DB_PORT=5432
+      - SERVICE_NAME=auth-service
+      - JWT_SECRET=${JWT_SECRET:-change_me_in_production}
+      - JWT_EXPIRES_IN=7d
+      - NODE_ENV=development
+    ports:
+      - "3001:3001"
+      - "9229:9229"
+    depends_on:
+      - auth_db
+    volumes:
+      - ../services/auth:/app
+      - /app/node_modules
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  auth_db:
+    image: postgres:15-alpine
+    container_name: auth_db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=auth_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # TENANT SERVICE  (porta 3002 / db 5434)
+  # ---------------------------------------------------------------------------
+  tenant-service:
+    build: ../services/tenant
+    container_name: tenant-service
+    environment:
+      - PORT=3002
+      - DB_HOST=tenant_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=tenant_db
+      - DB_PORT=5432
+      - SERVICE_NAME=tenant-service
+      - JWT_SECRET=${JWT_SECRET:-change_me_in_production}
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-change_me_in_production}
+      - NODE_ENV=development
+    ports:
+      - "3002:3002"
+      - "9230:9229"
+    depends_on:
+      - tenant_db
+    volumes:
+      - ../services/tenant:/app
+      - /app/node_modules
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  tenant_db:
+    image: postgres:15-alpine
+    container_name: tenant_db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=tenant_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - tenant_db_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # COMPANY SERVICE  (porta 3003 / db 5435)
+  # ---------------------------------------------------------------------------
+  company-service:
+    build: ../services/company
+    container_name: company-service
+    environment:
+      - PORT=3003
+      - DB_HOST=company_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=company_db
+      - DB_PORT=5432
+      - SERVICE_NAME=company-service
+      - JWT_SECRET=${JWT_SECRET:-change_me_in_production}
+      - NODE_ENV=development
+    ports:
+      - "3003:3003"
+      - "9231:9229"
+    depends_on:
+      - company_db
+    volumes:
+      - ../services/company:/app
+      - /app/node_modules
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  company_db:
+    image: postgres:15-alpine
+    container_name: company_db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=company_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - company_db_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # ASSIGNMENT SERVICE  (porta 3004 / db 5436)
+  # ---------------------------------------------------------------------------
+  assignment-service:
+    build: ../services/assignment
+    container_name: assignment-service
+    environment:
+      - PORT=3004
+      - DB_HOST=assignment_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=assignment_db
+      - DB_PORT=5432
+      - SERVICE_NAME=assignment-service
+      - JWT_SECRET=${JWT_SECRET:-change_me_in_production}
+      - NODE_ENV=development
+    ports:
+      - "3004:3004"
+      - "9232:9229"
+    depends_on:
+      - assignment_db
+    volumes:
+      - ../services/assignment:/app
+      - /app/node_modules
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  assignment_db:
+    image: postgres:15-alpine
+    container_name: assignment_db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=assignment_db
+    ports:
+      - "5436:5432"
+    volumes:
+      - assignment_db_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # AUDIT SERVICE  (porta 3005 / db 5437)
+  # ---------------------------------------------------------------------------
+  audit-service:
+    build: ../services/audit
+    container_name: audit-service
+    environment:
+      - PORT=3005
+      - DB_HOST=audit_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=audit_db
+      - DB_PORT=5432
+      - SERVICE_NAME=audit-service
+      - JWT_SECRET=${JWT_SECRET:-change_me_in_production}
+      - NODE_ENV=development
+    ports:
+      - "3005:3005"
+      - "9233:9229"
+    depends_on:
+      - audit_db
+    volumes:
+      - ../services/audit:/app
+      - /app/node_modules
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  audit_db:
+    image: postgres:15-alpine
+    container_name: audit_db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=audit_db
+    ports:
+      - "5437:5432"
+    volumes:
+      - audit_db_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # DOCUMENT SERVICE  (porta 3006 / db 5438)
+  # ---------------------------------------------------------------------------
+  document-service:
+    build: ../services/document
+    container_name: document-service
+    environment:
+      - PORT=3006
+      - DB_HOST=document_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=document_db
+      - DB_PORT=5432
+      - SERVICE_NAME=document-service
+      - JWT_SECRET=${JWT_SECRET:-change_me_in_production}
+      - STORAGE_PATH=/app/storage
+      - AI_SERVICE_URL=http://ai-service:3008
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-change_me_in_production}
+      - NODE_ENV=development
+    ports:
+      - "3006:3006"
+      - "9234:9229"
+    depends_on:
+      - document_db
+    volumes:
+      - ../services/document:/app
+      - /app/node_modules
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  document_db:
+    image: postgres:15-alpine
+    container_name: document_db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=document_db
+    ports:
+      - "5438:5432"
+    volumes:
+      - document_db_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # ACCOUNTING SERVICE  (porta 3007 / db 5439)
+  # ---------------------------------------------------------------------------
+  accounting-service:
+    build: ../services/accounting
+    container_name: accounting-service
+    environment:
+      - PORT=3007
+      - DB_HOST=accounting_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=accounting_db
+      - DB_PORT=5432
+      - SERVICE_NAME=accounting-service
+      - JWT_SECRET=${JWT_SECRET:-change_me_in_production}
+      - AI_SERVICE_URL=http://ai-service:3008
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-change_me_in_production}
+      - NODE_ENV=development
+    ports:
+      - "3007:3007"
+      - "9235:9229"
+    depends_on:
+      - accounting_db
+    volumes:
+      - ../services/accounting:/app
+      - /app/node_modules
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  accounting_db:
+    image: postgres:15-alpine
+    container_name: accounting_db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=accounting_db
+    ports:
+      - "5439:5432"
+    volumes:
+      - accounting_db_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # AI SERVICE  (porta 3008 / nessun DB — solo interno)
+  # ---------------------------------------------------------------------------
+  ai-service:
+    build: ../services/ai
+    container_name: ai-service
+    environment:
+      - PORT=3008
+      - SERVICE_NAME=ai-service
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - NODE_ENV=development
+    # Nessuna porta esposta verso host — solo comunicazione interna
+    expose:
+      - "3008"
+    volumes:
+      - ../services/ai:/app
+      - /app/node_modules
+    networks:
+      - app_network
+    restart: unless-stopped

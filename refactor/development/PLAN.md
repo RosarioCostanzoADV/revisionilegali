@@ -1,7 +1,7 @@
 # Piano Operativo — Refactoring Microservizi
 
 > **Ultimo aggiornamento:** 2026-05-21  
-> **Stato globale:** `IN CORSO — Fase 0 completata`  
+> **Stato globale:** `IN CORSO — Fase 1.0 completata`  
 > **Legenda:** ⬜ non iniziato · 🔄 in corso · ✅ completato · ❌ bloccato
 
 ---
@@ -23,10 +23,10 @@
 
 | # | Task | Stato | Note |
 |---|---|---|---|
-| 1.0.1 | Creare `docker/` con `docker-compose.yml` skeleton (rete, volumi) | ⬜ | |
-| 1.0.2 | Creare `docker/nginx/nginx.conf` con routing path-based verso i servizi | ⬜ | |
-| 1.0.3 | Creare `services/template/` (template base microservizio) | ⬜ | Prerequisito per `create_ms.py` |
-| 1.0.4 | Verificare che `create_ms.py` funzioni correttamente | ⬜ | |
+| 1.0.1 | Creare `docker/` con `docker-compose.yml` skeleton (rete, volumi) | ✅ | Tutti i servizi + db + nginx |
+| 1.0.2 | Creare `docker/nginx/nginx.conf` con routing path-based verso i servizi | ✅ | Routing completo per tutti gli 8 servizi |
+| 1.0.3 | Creare `services/template/` (template base microservizio) | ✅ | 7 file: Dockerfile, index.js, package.json, config/, middleware/, models/, routes/ |
+| 1.0.4 | Verificare che `create_ms.py` funzioni correttamente | ✅ | Testato — copia template e aggiorna package.json correttamente | |
 
 ### 1.1 `auth-service` (porta 3001, db 5433)
 
