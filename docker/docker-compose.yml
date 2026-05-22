@@ -11,6 +11,7 @@ volumes:
   assignment_db_data:
   audit_db_data:
   document_db_data:
+  document_storage_data:
   accounting_db_data:
 
 services:
@@ -297,6 +298,7 @@ services:
     volumes:
       - ../services/document:/app
       - /app/node_modules
+      - document_storage_data:/app/storage
     networks:
       - app_network
     restart: unless-stopped

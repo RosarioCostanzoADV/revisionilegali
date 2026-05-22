@@ -1,7 +1,7 @@
 # Piano Operativo — Refactoring Microservizi
 
 > **Ultimo aggiornamento:** 2026-05-22  
-> **Stato globale:** `IN CORSO — Fase 1.5 completata`  
+> **Stato globale:** `IN CORSO — Fase 1.6 completata`  
 > **Legenda:** ⬜ non iniziato · 🔄 in corso · ✅ completato · ❌ bloccato
 
 ---
@@ -107,16 +107,16 @@
 
 | # | Task | Stato | Note |
 |---|---|---|---|
-| 1.6.1 | Scaffoldare con `create_ms.py document` | ⬜ | |
-| 1.6.2 | Creare modello `Document` (`documents`) | ⬜ | |
-| 1.6.3 | Creare modello `Draft` (`drafts`) | ⬜ | |
-| 1.6.4 | Creare migrazioni DB | ⬜ | |
-| 1.6.5 | Configurare `multer` per upload file su volume Docker | ⬜ | |
-| 1.6.6 | Implementare upload/download documenti | ⬜ | |
-| 1.6.7 | Implementare CRUD bozze con generazione template testo | ⬜ | Portare i template da Next.js |
-| 1.6.8 | Aggiungere volume storage in `docker-compose.yml` | ⬜ | |
-| 1.6.9 | Aggiungere al `docker-compose.yml` | ⬜ | |
-| 1.6.10 | Test: upload file + download + CRUD bozze | ⬜ | |
+| 1.6.1 | Scaffoldare con `create_ms.py document` | ✅ | |
+| 1.6.2 | Creare modello `Document` (`documents`) | ✅ | UUID PK, file_path, file_size, mime_type, category |
+| 1.6.3 | Creare modello `Draft` (`drafts`) | ✅ | UUID PK, assignment_id, quarter_id nullable, type enum 5 valori |
+| 1.6.4 | Creare migrazioni DB | ✅ | 2 file con indici su tenant_id/quarter_id/assignment_id |
+| 1.6.5 | Configurare `multer` per upload file su volume Docker | ✅ | `/app/storage`, 20MB max, 8 MIME ammessi |
+| 1.6.6 | Implementare upload/download documenti | ✅ | POST multipart, GET/:id/download con sendFile |
+| 1.6.7 | Implementare CRUD bozze con generazione template testo | ✅ | 4 template (relazione, lettera, verbale_collegio, verbale_sindaco) |
+| 1.6.8 | Aggiungere volume storage in `docker-compose.yml` | ✅ | `document_storage_data:/app/storage` |
+| 1.6.9 | Aggiungere al `docker-compose.yml` | ✅ | Già presente dal fase 1.0 |
+| 1.6.10 | Test: upload file + download + CRUD bozze | ⬜ | Docker offline — sintassi JS: OK |
 
 ### 1.7 `accounting-service` (porta 3007, db 5439)
 

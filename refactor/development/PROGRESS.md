@@ -211,6 +211,46 @@ Fase 1.6 — `document-service`: scaffolding, modelli `Document` + `Draft`, uplo
 
 ---
 
+## 2026-05-22 — Fase 1.6 — `document-service`
+
+### Fatto
+- Scaffoldato `services/document/` tramite `create_ms.py document`
+- Aggiunto `multer` e `uuid` a `package.json`
+- Aggiornato `config/config.js` con database `document_db`
+- Aggiornato `index.js`: SERVICE_NAME default = `document-service`
+- Aggiornato `middleware/auth.js`: controllo `tenant_id` obbligatorio nel JWT + `requireSuperAdmin`
+- Creato `config/multer.js`: storage su disco (`/app/storage/<tenant_id>/<quarter_id>/`), 20 MB max, 8 MIME ammessi, filename UUID
+- Creati modelli Sequelize:
+  - `models/Document.js` — tabella `documents` (UUID PK, tenant_id, quarter_id, name, file_path, file_size, mime_type, category, notes, uploaded_by)
+  - `models/Draft.js` — tabella `drafts` (UUID PK, tenant_id, assignment_id, quarter_id nullable, title, type enum 5 valori, content TEXT, status bozza/definitivo, created_by)
+- Creati file di migrazione:
+  - `migrations/20260522000001-create-documents.js` — indici su tenant_id e quarter_id
+  - `migrations/20260522000002-create-drafts.js` — indici su tenant_id, assignment_id, quarter_id
+- Creati controller:
+  - `controllers/documentsController.js` — listDocuments (per quarter_id), uploadDocument (multipart + multer), downloadDocument (sendFile + Content-Disposition), deleteDocument (rimuove da DB e disco)
+  - `controllers/draftsController.js` — CRUD completo; createDraft genera testo da template (4 tipi + altro); deleteDraft: documenti definitivi non eliminabili; RBAC owner/revisor
+- Creati file route:
+  - `routes/documentsRoutes.js` — GET / POST (multer) / GET/:id/download / DELETE/:id
+  - `routes/draftsRoutes.js` — GET / POST / GET/:id / PATCH/:id / DELETE/:id
+  - `routes/index.js` — registrate `/documents` e `/drafts`
+- Aggiornato `docker/docker-compose.yml`: aggiunto volume `document_storage_data:/app/storage` al servizio document-service e dichiarato in volumes
+- Verifica sintattica JS: **tutti i 12 file OK** (`node --check`)
+
+### Decisioni prese
+- File salvati su volume Docker named (`document_storage_data`) per persistenza tra restart — no Supabase Storage.
+- `GET /api/documents/:id/download` usa `res.sendFile` con path assoluto; tenant isolation garantita recuperando il record dal DB con `WHERE tenant_id`.
+- Template bozze: portati 1:1 dal frontend Next.js originale — stessi 4 tipi + fallback `altro`.
+- `draft.status = 'definitivo'` blocca eliminazione (stesso comportamento del monolite).
+- `createDraft` accetta `company_name`, `year`, `revisor_name` nel body per pre-popolare il template (il client li recupera da altri servizi prima della chiamata).
+
+### Problemi / Blocchi
+- Docker daemon offline — smoke test da eseguire quando Docker è disponibile.
+
+### Prossimo step
+Fase 1.7 — `accounting-service`: scaffolding, modelli `AccountingImport` + `AccountingEntry`, parser CSV/XLSX portato da `lib/accounting/parsers.ts`, chiamata interna ad `ai-service`.
+
+---
+
 ## 2026-05-22 — Fase 1.2 — `tenant-service`
 
 ### Fatto
