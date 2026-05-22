@@ -1,7 +1,7 @@
 # Piano Operativo — Refactoring Microservizi
 
-> **Ultimo aggiornamento:** 2026-05-21  
-> **Stato globale:** `IN CORSO — Fase 1.2 completata`  
+> **Ultimo aggiornamento:** 2026-05-22  
+> **Stato globale:** `IN CORSO — Fase 1.4 completata`  
 > **Legenda:** ⬜ non iniziato · 🔄 in corso · ✅ completato · ❌ bloccato
 
 ---
@@ -64,29 +64,29 @@
 
 | # | Task | Stato | Note |
 |---|---|---|---|
-| 1.3.1 | Scaffoldare con `create_ms.py company` | ⬜ | |
-| 1.3.2 | Creare modello `Company` (`companies`) | ⬜ | |
-| 1.3.3 | Creare migrazione DB | ⬜ | |
-| 1.3.4 | Implementare CRUD aziende (`/api/companies`) | ⬜ | Filtro per `tenant_id` da JWT |
-| 1.3.5 | Implementare soft-delete (archivio: `is_archived`) | ⬜ | |
-| 1.3.6 | Aggiungere al `docker-compose.yml` | ⬜ | |
-| 1.3.7 | Test: health check + CRUD aziende | ⬜ | |
+| 1.3.1 | Scaffoldare con `create_ms.py company` | ✅ | |
+| 1.3.2 | Creare modello `Company` (`companies`) | ✅ | UUID PK, tenant_id, campi anagrafici, is_archived |
+| 1.3.3 | Creare migrazione DB | ✅ | Indici su tenant_id e tenant_id+is_archived |
+| 1.3.4 | Implementare CRUD aziende (`/api/companies`) | ✅ | Filtro per `tenant_id` da JWT |
+| 1.3.5 | Implementare soft-delete (archivio: `is_archived`) | ✅ | DELETE → imposta is_archived=true |
+| 1.3.6 | Aggiungere al `docker-compose.yml` | ✅ | Già presente dal fase 1.0 |
+| 1.3.7 | Test: health check + CRUD aziende | ⬜ | Docker offline — sintassi JS: OK |
 
 ### 1.4 `assignment-service` (porta 3004, db 5436)
 
 | # | Task | Stato | Note |
 |---|---|---|---|
-| 1.4.1 | Scaffoldare con `create_ms.py assignment` | ⬜ | |
-| 1.4.2 | Creare modello `Assignment` (`assignments`) | ⬜ | |
-| 1.4.3 | Creare modello `AssignmentMember` (`assignment_members`) | ⬜ | |
-| 1.4.4 | Creare modello `Quarter` (`quarters`) | ⬜ | |
-| 1.4.5 | Creare migrazioni DB | ⬜ | |
-| 1.4.6 | Implementare `POST /api/assignments` con auto-creazione 4 trimestri | ⬜ | Logica business critica |
-| 1.4.7 | Implementare CRUD incarichi e stati | ⬜ | |
-| 1.4.8 | Implementare gestione team (members) | ⬜ | |
-| 1.4.9 | Implementare route trimestri | ⬜ | |
-| 1.4.10 | Aggiungere al `docker-compose.yml` | ⬜ | |
-| 1.4.11 | Test: creazione incarico genera 4 quarter | ⬜ | |
+| 1.4.1 | Scaffoldare con `create_ms.py assignment` | ✅ | |
+| 1.4.2 | Creare modello `Assignment` (`assignments`) | ✅ | tenant_id, company_id, year, type, status, notes, created_by |
+| 1.4.3 | Creare modello `AssignmentMember` (`assignment_members`) | ✅ | CASCADE delete, unique (assignment_id, user_id) |
+| 1.4.4 | Creare modello `Quarter` (`quarters`) | ✅ | tenant_id, quarter (1-4), status, closed_at |
+| 1.4.5 | Creare migrazioni DB | ✅ | 3 file con indici e vincoli FK |
+| 1.4.6 | Implementare `POST /api/assignments` con auto-creazione 4 trimestri | ✅ | bulkCreate quarters + members |
+| 1.4.7 | Implementare CRUD incarichi e stati | ✅ | GET list, GET :id (con members+quarters), PATCH :id |
+| 1.4.8 | Implementare gestione team (members) | ✅ | Replace-all su PATCH con member_ids |
+| 1.4.9 | Implementare route trimestri | ✅ | GET /quarters/:id, PATCH /quarters/:id (con closed_at auto) |
+| 1.4.10 | Aggiungere al `docker-compose.yml` | ✅ | Già presente dal fase 1.0 |
+| 1.4.11 | Test: creazione incarico genera 4 quarter | ⬜ | Docker offline — sintassi JS: OK |
 
 ### 1.5 `audit-service` (porta 3005, db 5437)
 

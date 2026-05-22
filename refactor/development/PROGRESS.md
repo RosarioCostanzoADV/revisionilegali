@@ -98,6 +98,78 @@ Fase 1.2 — `tenant-service`: scaffolding, modelli `Plan` + `Tenant`, CRUD pian
 
 ---
 
+## 2026-05-22 — Fase 1.3 — `company-service`
+
+### Fatto
+- Scaffoldato `services/company/` tramite `create_ms.py company`
+- Aggiornato `config/config.js` con database `company_db`
+- Aggiornato `index.js`: SERVICE_NAME default = `company-service`
+- Aggiornato `middleware/auth.js`: aggiunto controllo `tenant_id` obbligatorio nel JWT + `requireSuperAdmin`
+- Creato modello Sequelize:
+  - `models/Company.js` — tabella `companies` (UUID PK, tenant_id, name, fiscal_code, vat_number, sector, address, city, province, notes, is_archived, timestamps)
+- Creato `migrations/20260522000001-create-companies.js` — tabella + indici su `tenant_id` e `(tenant_id, is_archived)`
+- Creato controller:
+  - `controllers/companiesController.js` — listCompanies (filtro archived), getCompany, createCompany, updateCompany (PATCH), archiveCompany (soft-delete via DELETE)
+- Creati file route:
+  - `routes/companiesRoutes.js` — GET / GET/:id / POST / PATCH/:id / DELETE/:id (tutti richiedono JWT)
+  - `routes/index.js` — registrato `/companies`
+- docker-compose.yml già conteneva company-service e company_db dalla Fase 1.0 (nessuna modifica necessaria)
+- Verifica sintattica JS: **tutti i 9 file OK** (`node --check`)
+
+### Decisioni prese
+- Soft-delete tramite `is_archived = true` per preservare i riferimenti dagli incarichi.
+- `DELETE /api/companies/:id` archivia (non distrugge): coerente con l'interfaccia Supabase esistente.
+- `GET /api/companies` esclude le archiviate di default; `?archived=true` le include tutte.
+- Solo `tenant_owner` e `revisor` possono creare/modificare/archiviare aziende.
+- Tenant isolation garantito: ogni query include `WHERE tenant_id = req.user.tenant_id`.
+
+### Problemi / Blocchi
+- Docker daemon offline — smoke test da eseguire quando Docker è disponibile.
+
+### Prossimo step
+Fase 1.4 — `assignment-service`: scaffolding, modelli `Assignment` + `AssignmentMember` + `Quarter`, CRUD incarichi con auto-creazione 4 trimestri.
+
+---
+
+## 2026-05-22 — Fase 1.4 — `assignment-service`
+
+### Fatto
+- Scaffoldato `services/assignment/` tramite `create_ms.py assignment`
+- Aggiornato `config/config.js` con database `assignment_db`
+- Aggiornato `index.js`: SERVICE_NAME default = `assignment-service`
+- Aggiornato `middleware/auth.js`: controllo `tenant_id` obbligatorio + `requireSuperAdmin`
+- Creati modelli Sequelize:
+  - `models/Assignment.js` — tabella `assignments` (UUID PK, tenant_id, company_id, year, type, status, notes, created_by)
+  - `models/AssignmentMember.js` — tabella `assignment_members` (UUID PK, FK assignment_id CASCADE, user_id, role)
+  - `models/Quarter.js` — tabella `quarters` (UUID PK, FK assignment_id CASCADE, tenant_id, quarter 1-4, status, notes, closed_at)
+- Creati file di migrazione:
+  - `migrations/20260522000001-create-assignments.js` — indici su tenant_id, (tenant_id, company_id), (tenant_id, year)
+  - `migrations/20260522000002-create-assignment-members.js` — FK con CASCADE, unique (assignment_id, user_id)
+  - `migrations/20260522000003-create-quarters.js` — FK con CASCADE, unique (assignment_id, quarter)
+- Creati controller:
+  - `controllers/assignmentsController.js` — listAssignments, getAssignment (con members+quarters inline), createAssignment (auto-crea 4 quarters + membri), updateAssignment (replace-all members), listQuarters
+  - `controllers/quartersController.js` — getQuarter, updateQuarter (con gestione automatica closed_at)
+- Creati file route:
+  - `routes/assignmentsRoutes.js` — GET / POST / GET/:id / PATCH/:id / GET/:id/quarters
+  - `routes/quartersRoutes.js` — GET/:id / PATCH/:id
+  - `routes/index.js` — registrate `/assignments` e `/quarters`
+- docker-compose.yml già conteneva assignment-service e assignment_db dalla Fase 1.0 (nessuna modifica necessaria)
+- Verifica sintattica JS: **tutti i 15 file OK** (`node --check`)
+
+### Decisioni prese
+- `POST /api/assignments` usa `bulkCreate` transazionale per i 4 trimestri — atomico.
+- `PATCH /api/assignments/:id` con `member_ids`: rimpiazza tutti i membri (delete + bulkCreate) come nel frontend originale.
+- `Quarter.closed_at` viene impostato automaticamente quando `status = 'chiuso'`, azzerato altrimenti.
+- `tenant_id` replicato in `quarters` per query dirette senza JOIN a `assignments`.
+
+### Problemi / Blocchi
+- Docker daemon offline — smoke test da eseguire quando Docker è disponibile.
+
+### Prossimo step
+Fase 1.5 — `audit-service`: scaffolding, modelli `WorkingPaper` + `Finding` + `VigilanzaItem`, CRUD carte di lavoro, rilievi e checklist vigilanza.
+
+---
+
 ## 2026-05-22 — Fase 1.2 — `tenant-service`
 
 ### Fatto
