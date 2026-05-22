@@ -397,6 +397,45 @@ Fase 1.3 — `company-service`: scaffolding, modello `Company`, CRUD aziende con
 
 ---
 
+## 2026-05-23 — Fase 1.10 — Deploy Docker + Smoke Test
+
+### Fatto
+- Risolto problema ENOSPC Docker VM: aumentata la dimensione del virtual disk Docker Desktop a 80GB+
+- Avviati con successo tutti i 16 container del progetto: api-gateway, 8 microservizi, 7 DB PostgreSQL
+- **Fix nginx.conf**:
+  - Aggiunto `resolver 127.0.0.11 valid=10s ipv6=off` per risoluzione DNS lazy degli upstream
+  - Usata variabile `$frontend_upstream` per evitare il "host not found" al boot quando il container frontend non è attivo
+  - Rimossi i trailing slash da tutte le `location /api/xxx/` per evitare i redirect HTTP 301 sulle collection (POST /api/companies, etc.)
+- **Fix health route aliases**: aggiunte route `/xxx/health` a tutti i services per rispondere correttamente al pattern del gateway (`/api/auth/health` → auth-service riceve `/auth/health`)
+  - auth: `/auth/health`
+  - tenant: `/tenants/health`, `/plans/health`
+  - company: `/companies/health`
+  - assignment: `/assignments/health`
+  - audit: `/audit/health`
+  - document: `/documents/health`, `/drafts/health`
+  - accounting: `/accounting/health`
+- **Fix audit-service route alias**: aggiunto `router.use('/audit/working-papers', ...)` perché il gateway invia il path completo `/api/audit/working-papers` che Express riceve come `/audit/working-papers`
+- **Seed DB**: inseriti utenti test in auth_db e tenant/plan in tenant_db tramite psql
+- **Fix smoke-test.js**: corretto `r.body?.token` → `r.body?.access_token`; aggiunta fetch del `quarter_id` prima della creazione carta di lavoro; serializzato `content` come stringa JSON
+
+### Risultato smoke test: **29/29 passed**
+- ✓ 9 health check via gateway
+- ✓ 7 health check diretti (bypass nginx)
+- ✓ 6 auth (login + verify JWT per super_admin, tenantA, tenantB)
+- ✓ 4 CRUD flow: azienda → incarico → carta di lavoro → bozza documento
+- ✓ 2 isolamento multi-tenant
+- ✓ 1 CORS preflight
+
+### Decisioni prese
+- Bind mount + nodemon in sviluppo: le modifiche ai sorgenti si riflettono immediatamente senza rebuild dell'immagine
+- Health alias nelle route (non rewrite nginx) per semplicità e retrocompatibilità con accesso diretto ai servizi
+- DB di ogni microservizio isolato (no FK cross-service): isolamento completo tra servizi
+
+### Prossimo step
+Task 1.7.7 — accounting-service chiama ai-service per classificazione AI voci di bilancio, poi Fase 2 (Frontend refactoring).
+
+---
+
 <!-- Template per entry future:
 
 ## YYYY-MM-DD — <Titolo step>

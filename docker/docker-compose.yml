@@ -57,7 +57,7 @@ services:
   # AUTH SERVICE  (porta 3001 / db 5433)
   # ---------------------------------------------------------------------------
   auth-service:
-    build: ../services/auth
+    build: ../refactor/backend/services/auth
     container_name: auth-service
     environment:
       - PORT=3001
@@ -76,7 +76,7 @@ services:
     depends_on:
       - auth_db
     volumes:
-      - ../services/auth:/app
+      - ../refactor/backend/services/auth:/app
       - /app/node_modules
     networks:
       - app_network
@@ -101,7 +101,7 @@ services:
   # TENANT SERVICE  (porta 3002 / db 5434)
   # ---------------------------------------------------------------------------
   tenant-service:
-    build: ../services/tenant
+    build: ../refactor/backend/services/tenant
     container_name: tenant-service
     environment:
       - PORT=3002
@@ -121,7 +121,7 @@ services:
     depends_on:
       - tenant_db
     volumes:
-      - ../services/tenant:/app
+      - ../refactor/backend/services/tenant:/app
       - /app/node_modules
     networks:
       - app_network
@@ -146,7 +146,7 @@ services:
   # COMPANY SERVICE  (porta 3003 / db 5435)
   # ---------------------------------------------------------------------------
   company-service:
-    build: ../services/company
+    build: ../refactor/backend/services/company
     container_name: company-service
     environment:
       - PORT=3003
@@ -164,7 +164,7 @@ services:
     depends_on:
       - company_db
     volumes:
-      - ../services/company:/app
+      - ../refactor/backend/services/company:/app
       - /app/node_modules
     networks:
       - app_network
@@ -189,7 +189,7 @@ services:
   # ASSIGNMENT SERVICE  (porta 3004 / db 5436)
   # ---------------------------------------------------------------------------
   assignment-service:
-    build: ../services/assignment
+    build: ../refactor/backend/services/assignment
     container_name: assignment-service
     environment:
       - PORT=3004
@@ -207,7 +207,7 @@ services:
     depends_on:
       - assignment_db
     volumes:
-      - ../services/assignment:/app
+      - ../refactor/backend/services/assignment:/app
       - /app/node_modules
     networks:
       - app_network
@@ -232,7 +232,7 @@ services:
   # AUDIT SERVICE  (porta 3005 / db 5437)
   # ---------------------------------------------------------------------------
   audit-service:
-    build: ../services/audit
+    build: ../refactor/backend/services/audit
     container_name: audit-service
     environment:
       - PORT=3005
@@ -250,7 +250,7 @@ services:
     depends_on:
       - audit_db
     volumes:
-      - ../services/audit:/app
+      - ../refactor/backend/services/audit:/app
       - /app/node_modules
     networks:
       - app_network
@@ -275,7 +275,7 @@ services:
   # DOCUMENT SERVICE  (porta 3006 / db 5438)
   # ---------------------------------------------------------------------------
   document-service:
-    build: ../services/document
+    build: ../refactor/backend/services/document
     container_name: document-service
     environment:
       - PORT=3006
@@ -296,7 +296,7 @@ services:
     depends_on:
       - document_db
     volumes:
-      - ../services/document:/app
+      - ../refactor/backend/services/document:/app
       - /app/node_modules
       - document_storage_data:/app/storage
     networks:
@@ -322,7 +322,7 @@ services:
   # ACCOUNTING SERVICE  (porta 3007 / db 5439)
   # ---------------------------------------------------------------------------
   accounting-service:
-    build: ../services/accounting
+    build: ../refactor/backend/services/accounting
     container_name: accounting-service
     environment:
       - PORT=3007
@@ -343,7 +343,7 @@ services:
     depends_on:
       - accounting_db
     volumes:
-      - ../services/accounting:/app
+      - ../refactor/backend/services/accounting:/app
       - /app/node_modules
     networks:
       - app_network
@@ -368,7 +368,7 @@ services:
   # AI SERVICE  (porta 3008 / nessun DB — solo interno)
   # ---------------------------------------------------------------------------
   ai-service:
-    build: ../services/ai
+    build: ../refactor/backend/services/ai
     container_name: ai-service
     environment:
       - PORT=3008
@@ -380,7 +380,7 @@ services:
     expose:
       - "3008"
     volumes:
-      - ../services/ai:/app
+      - ../refactor/backend/services/ai:/app
       - /app/node_modules
     networks:
       - app_network

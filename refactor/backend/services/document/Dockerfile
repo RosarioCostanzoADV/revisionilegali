@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install
+RUN echo "network-timeout=3600000" > .npmrc && npm install
 
 COPY . .
 

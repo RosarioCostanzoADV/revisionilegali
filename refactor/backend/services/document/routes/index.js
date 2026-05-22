@@ -9,6 +9,14 @@ router.get('/health', (req, res) => {
 const documentsRoutes = require('./documentsRoutes');
 const draftsRoutes = require('./draftsRoutes');
 
+// Health aliases per l'API gateway
+router.get('/documents/health', (req, res) => {
+    res.json({ status: 'OK', service: process.env.SERVICE_NAME || 'document-service' });
+});
+router.get('/drafts/health', (req, res) => {
+    res.json({ status: 'OK', service: process.env.SERVICE_NAME || 'document-service' });
+});
+
 router.use('/documents', documentsRoutes);
 router.use('/drafts', draftsRoutes);
 

@@ -7,6 +7,11 @@ router.get('/health', (req, res) => {
 });
 
 const companiesRoutes = require('./companiesRoutes');
+// Health alias per l'API gateway (/api/companies/health)
+router.get('/companies/health', (req, res) => {
+    res.json({ status: 'OK', service: process.env.SERVICE_NAME || 'company-service' });
+});
+
 router.use('/companies', companiesRoutes);
 
 module.exports = router;

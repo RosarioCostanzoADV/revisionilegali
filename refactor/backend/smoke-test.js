@@ -160,8 +160,8 @@ async function testAuth() {
   for (const [label, creds] of [['super_admin', SUPER_ADMIN], ['tenantA', TENANT_A], ['tenantB', TENANT_B]]) {
     try {
       const r = await post(`${GW}/api/auth/login`, creds);
-      if (r.status === 200 && r.body?.token) {
-        tokens[label] = r.body.token;
+      if (r.status === 200 && r.body?.access_token) {
+        tokens[label] = r.body.access_token;
         ok(`login ${label}`);
       } else {
         fail(`login ${label}`, `HTTP ${r.status}: ${JSON.stringify(r.body)}`);
@@ -247,12 +247,17 @@ async function testCrudFlow(tokens) {
   // Crea carta di lavoro
   if (assignmentId) {
     try {
+      // Recupera il quarter_id (creati automaticamente alla creazione dell'incarico)
+      const qr = await get(`${GW}/api/assignments/${assignmentId}/quarters`, hdrs);
+      const quarterId = Array.isArray(qr.body) && qr.body.length > 0 ? qr.body[0].id : null;
+      if (!quarterId) {
+        fail('crea carta di lavoro', `Nessun quarter trovato per l'incarico`);
+      } else {
       const r = await post(`${GW}/api/audit/working-papers`, {
-        assignment_id:  assignmentId,
+        quarter_id:     quarterId,
         title:          'WP-001 Smoke Test',
-        section:        'pianificazione',
-        template_type:  'checklist',
-        content:        { items: [{ text: 'Verifica iniziale', done: false }] },
+        area:           'altro',
+        content:        JSON.stringify({ items: [{ text: 'Verifica iniziale', done: false }] }),
       }, hdrs);
       if (r.status === 201 && r.body?.id) {
         workingPaperId = r.body.id;
@@ -260,6 +265,7 @@ async function testCrudFlow(tokens) {
       } else {
         fail('crea carta di lavoro', `HTTP ${r.status}: ${JSON.stringify(r.body)}`);
       }
+      } // end else quarterId
     } catch (e) {
       fail('crea carta di lavoro', e.message);
     }

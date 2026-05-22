@@ -8,6 +8,11 @@ router.get('/health', (req, res) => {
     res.json({ status: 'OK', service: process.env.SERVICE_NAME || 'accounting-service' });
 });
 
+// Health alias per l'API gateway (/api/accounting/health)
+router.get('/accounting/health', (req, res) => {
+    res.json({ status: 'OK', service: process.env.SERVICE_NAME || 'accounting-service' });
+});
+
 router.use('/imports', authenticateToken, importsRoutes);
 
 module.exports = router;
