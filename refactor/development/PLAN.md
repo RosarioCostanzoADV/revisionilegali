@@ -1,7 +1,7 @@
 # Piano Operativo — Refactoring Microservizi
 
 > **Ultimo aggiornamento:** 2026-05-21  
-> **Stato globale:** `IN CORSO — Fase 1.0 completata`  
+> **Stato globale:** `IN CORSO — Fase 1.2 completata`  
 > **Legenda:** ⬜ non iniziato · 🔄 in corso · ✅ completato · ❌ bloccato
 
 ---
@@ -32,33 +32,33 @@
 
 | # | Task | Stato | Note |
 |---|---|---|---|
-| 1.1.1 | Scaffoldare con `create_ms.py auth` | ⬜ | |
-| 1.1.2 | Creare modello `UserProfile` (`user_profiles`) | ⬜ | Includi `password_hash`, ruoli |
-| 1.1.3 | Creare modello `PasswordResetToken` (`password_reset_tokens`) | ⬜ | |
-| 1.1.4 | Creare migrazioni DB | ⬜ | |
-| 1.1.5 | Implementare login (bcrypt + JWT) | ⬜ | `POST /api/auth/login` |
-| 1.1.6 | Implementare verifica JWT (`GET /api/auth/verify`) | ⬜ | Usato da tutti gli altri servizi |
-| 1.1.7 | Implementare profilo utente (`GET/PUT /api/auth/me`) | ⬜ | |
-| 1.1.8 | Implementare reset password (email token) | ⬜ | |
-| 1.1.9 | Implementare CRUD utenti admin | ⬜ | `GET/POST/PUT/DELETE /api/auth/users` |
-| 1.1.10 | Aggiungere al `docker-compose.yml` (servizio + db) | ⬜ | |
-| 1.1.11 | Test: `docker compose up auth-service` → `/api/health` risponde OK | ⬜ | |
-| 1.1.12 | Test: login con credenziali valide restituisce JWT valido | ⬜ | |
+| 1.1.1 | Scaffoldare con `create_ms.py auth` | ✅ | |
+| 1.1.2 | Creare modello `UserProfile` (`user_profiles`) | ✅ | Includi `password_hash`, ruoli |
+| 1.1.3 | Creare modello `PasswordResetToken` (`password_reset_tokens`) | ✅ | |
+| 1.1.4 | Creare migrazioni DB | ✅ | |
+| 1.1.5 | Implementare login (bcrypt + JWT) | ✅ | `POST /api/auth/login` |
+| 1.1.6 | Implementare verifica JWT (`GET /api/auth/verify`) | ✅ | Usato da tutti gli altri servizi |
+| 1.1.7 | Implementare profilo utente (`GET/PUT /api/auth/me`) | ✅ | |
+| 1.1.8 | Implementare reset password (email token) | ✅ | |
+| 1.1.9 | Implementare CRUD utenti admin | ✅ | `GET/POST/PUT/DELETE /api/auth/users` |
+| 1.1.10 | Aggiungere al `docker-compose.yml` (servizio + db) | ✅ | Già presente dal fase 1.0 |
+| 1.1.11 | Test: `docker compose up auth-service` → `/api/health` risponde OK | ⬜ | Docker daemon offline — verifica sintassi JS: OK |
+| 1.1.12 | Test: login con credenziali valide restituisce JWT valido | ⬜ | Richiede Docker attivo |
 
 ### 1.2 `tenant-service` (porta 3002, db 5434)
 
 | # | Task | Stato | Note |
 |---|---|---|---|
-| 1.2.1 | Scaffoldare con `create_ms.py tenant` | ⬜ | |
-| 1.2.2 | Creare modello `Plan` (`plans`) | ⬜ | |
-| 1.2.3 | Creare modello `Tenant` (`tenants`) | ⬜ | |
-| 1.2.4 | Creare migrazioni DB | ⬜ | |
-| 1.2.5 | Implementare CRUD piani (`/api/plans`) | ⬜ | Solo super_admin può creare/modificare |
-| 1.2.6 | Implementare CRUD tenant (`/api/tenants`) | ⬜ | |
-| 1.2.7 | Implementare `GET /api/tenants/:id/status` | ⬜ | Usato dal middleware frontend |
-| 1.2.8 | Implementare `POST /api/tenants/onboarding` | ⬜ | |
-| 1.2.9 | Aggiungere al `docker-compose.yml` | ⬜ | |
-| 1.2.10 | Test: health check + CRUD tenant | ⬜ | |
+| 1.2.1 | Scaffoldare con `create_ms.py tenant` | ✅ | |
+| 1.2.2 | Creare modello `Plan` (`plans`) | ✅ | |
+| 1.2.3 | Creare modello `Tenant` (`tenants`) | ✅ | |
+| 1.2.4 | Creare migrazioni DB | ✅ | |
+| 1.2.5 | Implementare CRUD piani (`/api/plans`) | ✅ | Solo super_admin può creare/modificare |
+| 1.2.6 | Implementare CRUD tenant (`/api/tenants`) | ✅ | |
+| 1.2.7 | Implementare `GET /api/tenants/:id/status` | ✅ | Usato dal middleware frontend |
+| 1.2.8 | Implementare `POST /api/tenants/onboarding` | ✅ | |
+| 1.2.9 | Aggiungere al `docker-compose.yml` | ✅ | Già presente dal fase 1.0 |
+| 1.2.10 | Test: health check + CRUD tenant | ⬜ | Docker offline — sintassi JS: OK |
 
 ### 1.3 `company-service` (porta 3003, db 5435)
 

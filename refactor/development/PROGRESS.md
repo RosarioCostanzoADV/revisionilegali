@@ -61,6 +61,74 @@ Fase 1.1 — `auth-service`: scaffolding, modelli, migrazioni, implementazione l
 
 ---
 
+## 2026-05-22 — Fase 1.1 — `auth-service`
+
+### Fatto
+- Scaffoldato `services/auth/` tramite `create_ms.py auth`
+- Aggiunto `bcryptjs` e `uuid` a `package.json`; dipendenze installate (`npm install`)
+- Aggiornato `config/config.js` con database `auth_db` (dev/test)
+- Aggiornato `middleware/auth.js`: aggiunta `requireAdmin` (tenant_owner + super_admin) e `requireSuperAdmin`
+- Creati modelli Sequelize:
+  - `models/UserProfile.js` — tabella `user_profiles` (UUID PK, email unique, password_hash, tenant_id, role, full_name, phone, signature_text, is_active)
+  - `models/PasswordResetToken.js` — tabella `password_reset_tokens` (UUID PK, FK user_id, token_hash unique, expires_at, used_at)
+- Creato `migrations/20260522000001-create-user-profiles.js`
+- Creato `migrations/20260522000002-create-password-reset-tokens.js`
+- Creati controller:
+  - `controllers/authController.js` — login, logout, verify, getMe, updateMe, requestPasswordReset, updatePassword
+  - `controllers/usersController.js` — listUsers, createUser, updateUser, deactivateUser (soft-delete)
+- Creati file route:
+  - `routes/authRoutes.js` — tutte le route pubbliche + protette dell'auth
+  - `routes/usersRoutes.js` — CRUD utenti (richiede requireAdmin)
+- Aggiornato `routes/index.js` per registrare `/auth` e `/auth/users`
+- Aggiornato `index.js`: SERVICE_NAME default = `auth-service`
+- docker-compose.yml già conteneva auth-service e auth_db dalla Fase 1.0 (nessuna modifica necessaria)
+- Verifica sintassi JS: **tutti i file OK** (`node --check`)
+
+### Problemi / Blocchi
+- Docker daemon offline al momento del test: `docker compose up` non eseguibile. Test smoke (health check + login) da ri-eseguire quando Docker è attivo.
+
+### Decisioni prese
+- Reset password: token raw inviato via log in `NODE_ENV !== production`; email reale da implementare con un mail provider (prossima iterazione).
+- Logout stateless: il client elimina il JWT. Blacklist con Redis pianificata come miglioramento futuro.
+- Soft-delete per gli utenti (`is_active = false`) per preservare l'integrità referenziale.
+- `token_hash` usa SHA-256 del token raw (mai salvare token raw in DB).
+
+### Prossimo step
+Fase 1.2 — `tenant-service`: scaffolding, modelli `Plan` + `Tenant`, CRUD piani/tenant, onboarding, `/api/tenants/:id/status`.
+
+---
+
+## 2026-05-22 — Fase 1.2 — `tenant-service`
+
+### Fatto
+- Scaffoldato `services/tenant/` tramite `create_ms.py tenant`
+- Aggiunto `uuid` a `package.json`; dipendenze installate
+- Aggiornato `config/config.js` (db: tenant_db), `middleware/auth.js` (+requireSuperAdmin), `index.js`
+- Creati modelli Sequelize:
+  - `models/Plan.js` — tabella `plans` (UUID PK, name unique, max_assignments, max_users, storage_gb, ai_quota, moduli booleani, is_active)
+  - `models/Tenant.js` — tabella `tenants` (UUID PK, FK plan_id, status check, onboarding_completed)
+- Creato `migrations/20260522000001-create-plans.js`
+- Creato `migrations/20260522000002-create-tenants.js` (FK → plans con ON DELETE SET NULL)
+- Creati controller:
+  - `controllers/plansController.js` — listPlans (filtro is_active per non-admin), getPlan, createPlan, updatePlan
+  - `controllers/tenantsController.js` — listTenants, getTenant, getTenantStatus, createTenant, updateTenant, completeOnboarding
+- Creati file route:
+  - `routes/plansRoutes.js` — GET aperto, POST/PUT solo super_admin
+  - `routes/tenantsRoutes.js` — /:id/status accessibile a tutti gli autenticati; lista/crea solo super_admin
+- Aggiornato `routes/index.js` per registrare `/plans` e `/tenants`
+- docker-compose.yml già configurato dalla Fase 1.0
+- Verifica sintassi JS: **tutti i file OK** (`node --check`)
+
+### Decisioni prese
+- `GET /api/tenants/:id/status` è accessibile a qualsiasi JWT valido (serve al middleware Next.js per verificare lo stato del tenant dell'utente loggato)
+- `POST /api/tenants/onboarding` usa `tenant_id` dall'utente nel JWT (non da parametro URL) per evitare impersonation
+- tenant_owner ha permessi di scrittura limitati: non può cambiare `status`, `plan_id` o `plan_expires_at`
+
+### Prossimo step
+Fase 1.3 — `company-service`: scaffolding, modello `Company`, CRUD aziende con filtro tenant_id, soft-delete.
+
+---
+
 <!-- Template per entry future:
 
 ## YYYY-MM-DD — <Titolo step>
