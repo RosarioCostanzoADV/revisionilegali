@@ -170,6 +170,47 @@ Fase 1.5 — `audit-service`: scaffolding, modelli `WorkingPaper` + `Finding` + 
 
 ---
 
+## 2026-05-22 — Fase 1.5 — `audit-service`
+
+### Fatto
+- Scaffoldato `services/audit/` tramite `create_ms.py audit`
+- Aggiornato `config/config.js` con database `audit_db`
+- Aggiornato `index.js`: SERVICE_NAME default = `audit-service`
+- Aggiornato `middleware/auth.js`: controllo `tenant_id` obbligatorio nel JWT + `requireSuperAdmin`
+- Creati modelli Sequelize:
+  - `models/WorkingPaper.js` — tabella `working_papers` (UUID PK, tenant_id, quarter_id, title, area enum 11 valori, content TEXT, status bozza/in_revisione/approvata, prepared_by, reviewed_by, reviewed_at)
+  - `models/Finding.js` — tabella `findings` (UUID PK, tenant_id, quarter_id, working_paper_id nullable FK, title, description, recommendation, severity bassa/media/alta/critica, status aperto/in_gestione/risolto/chiuso, response, due_date, closed_at, raised_by)
+  - `models/VigilanzaItem.js` — tabella `vigilanza_items` (UUID PK, tenant_id, quarter_id, item 500, category, sort_order, done, notes, completed_by, completed_at)
+- Creati file di migrazione:
+  - `migrations/20260522000001-create-working-papers.js` — indici su tenant_id e quarter_id
+  - `migrations/20260522000002-create-findings.js` — indici su tenant_id, quarter_id e working_paper_id; FK su working_papers con SET NULL
+  - `migrations/20260522000003-create-vigilanza-items.js` — indici su tenant_id, quarter_id e (quarter_id, sort_order)
+- Creati controller:
+  - `controllers/workingPapersController.js` — CRUD con state machine: bozza→in_revisione→approvata; riapertura carta approvata solo con reopen_note; solo owner/revisor può approvare; on approvata: set reviewed_by + reviewed_at
+  - `controllers/findingsController.js` — CRUD rilievi; closed_at auto su status='chiuso'; nullificato su altri stati
+  - `controllers/vigilanzaController.js` — CRUD checklist; `load_template=true` carica 14 voci predefinite (409 se già esistono); done=true setta completed_by+completed_at automaticamente
+- Creati file route:
+  - `routes/workingPapersRoutes.js` — GET / POST / GET/:id / PATCH/:id
+  - `routes/findingsRoutes.js` — GET / POST / GET/:id / PATCH/:id
+  - `routes/vigilanzaRoutes.js` — GET / POST / PATCH/:id
+  - `routes/index.js` — registrate `/working-papers`, `/findings`, `/vigilanza`
+- docker-compose.yml già conteneva audit-service e audit_db dalla Fase 1.0 (nessuna modifica necessaria)
+- Verifica sintattica JS: **tutti i 13 file OK** (`node --check`)
+
+### Decisioni prese
+- State machine per WorkingPaper: accesso granulare per ruolo (RBAC). Solo `tenant_owner`/`revisor` possono approvare o riaprire carte già approvate.
+- `Finding.closed_at` auto-gestita lato server (non accettata dal client) per coerenza dati.
+- Template vigilanza: 14 voci in 4 categorie (contabilità, governance, adempimenti, controllo_interno) — porta la logica da `app/(tenant)/incarichi/[id]/vigilanza/route.ts`.
+- `VigilanzaItem.completed_by/at` auto-gestite lato server quando `done` cambia.
+
+### Problemi / Blocchi
+- Docker daemon offline — smoke test da eseguire quando Docker è disponibile.
+
+### Prossimo step
+Fase 1.6 — `document-service`: scaffolding, modelli `Document` + `Draft`, upload file con multer, CRUD documenti e bozze con template testo.
+
+---
+
 ## 2026-05-22 — Fase 1.2 — `tenant-service`
 
 ### Fatto

@@ -1,7 +1,7 @@
 # Piano Operativo — Refactoring Microservizi
 
 > **Ultimo aggiornamento:** 2026-05-22  
-> **Stato globale:** `IN CORSO — Fase 1.4 completata`  
+> **Stato globale:** `IN CORSO — Fase 1.5 completata`  
 > **Legenda:** ⬜ non iniziato · 🔄 in corso · ✅ completato · ❌ bloccato
 
 ---
@@ -92,16 +92,16 @@
 
 | # | Task | Stato | Note |
 |---|---|---|---|
-| 1.5.1 | Scaffoldare con `create_ms.py audit` | ⬜ | |
-| 1.5.2 | Creare modello `WorkingPaper` (`working_papers`) | ⬜ | |
-| 1.5.3 | Creare modello `Finding` (`findings`) | ⬜ | |
-| 1.5.4 | Creare modello `VigilanzaItem` (`vigilanza_items`) | ⬜ | |
-| 1.5.5 | Creare migrazioni DB | ⬜ | |
-| 1.5.6 | Implementare CRUD carte di lavoro | ⬜ | |
-| 1.5.7 | Implementare CRUD rilievi | ⬜ | |
-| 1.5.8 | Implementare checklist vigilanza (init da template) | ⬜ | Template standard predefinito |
-| 1.5.9 | Aggiungere al `docker-compose.yml` | ⬜ | |
-| 1.5.10 | Test: health check + CRUD carte/rilievi | ⬜ | |
+| 1.5.1 | Scaffoldare con `create_ms.py audit` | ✅ | |
+| 1.5.2 | Creare modello `WorkingPaper` (`working_papers`) | ✅ | UUID PK, area (enum 11 valori), state machine bozza→in_revisione→approvata |
+| 1.5.3 | Creare modello `Finding` (`findings`) | ✅ | UUID PK, severity, status aperto→chiuso con closed_at auto |
+| 1.5.4 | Creare modello `VigilanzaItem` (`vigilanza_items`) | ✅ | UUID PK, done con completed_by/at auto |
+| 1.5.5 | Creare migrazioni DB | ✅ | 3 file con indici su tenant_id, quarter_id |
+| 1.5.6 | Implementare CRUD carte di lavoro | ✅ | State machine con RBAC revisore/owner |
+| 1.5.7 | Implementare CRUD rilievi | ✅ | closed_at auto su status='chiuso' |
+| 1.5.8 | Implementare checklist vigilanza (init da template) | ✅ | 14 voci predefinite, 409 se già esistono |
+| 1.5.9 | Aggiungere al `docker-compose.yml` | ✅ | Già presente dal fase 1.0 |
+| 1.5.10 | Test: health check + CRUD carte/rilievi | ⬜ | Docker offline — sintassi JS: OK |
 
 ### 1.6 `document-service` (porta 3006, db 5438)
 
