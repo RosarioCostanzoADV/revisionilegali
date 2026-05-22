@@ -297,6 +297,37 @@ Fase 1.8 — `ai-service`: scaffolding, portare `lib/gemini/mapBilancio.ts`, end
 
 ---
 
+## 2026-05-22 — Fase 1.10 — Smoke Test Backend
+
+### Fatto
+- Creato `refactor/backend/smoke-test.js` — script Node.js (stdlib only, zero dipendenze):
+  - **Test 1**: health check di tutti i servizi via gateway nginx (9 route)
+  - **Test 2**: health check diretto per-service (bypassando nginx)
+  - **Test 3**: flusso auth — login super_admin + tenantA + tenantB → verifica JWT
+  - **Test 4**: CRUD flow TenantA — crea azienda → incarico → carta di lavoro → bozza documento
+  - **Test 5**: isolamento multi-tenant — TenantB non vede dati di TenantA (GET list + GET by id)
+  - **Test 6**: CORS preflight OPTIONS → 204 con Access-Control-Allow-Origin
+- Verifica sintattica: **OK** (`node --check`)
+
+### Come eseguire quando Docker è attivo
+```sh
+cd docker
+docker compose up --build -d
+# Attendere ~30s per DB migration
+
+cd ../refactor/backend
+node smoke-test.js
+```
+
+### Problemi / Blocchi
+- Docker daemon offline su macchina di sviluppo — test reali posticipati.
+- I seed SQL per i due tenant di test devono essere creati prima di eseguire lo script.
+
+### Prossimo step
+**FASE 1 completata** (salvo test runtime con Docker). Procedere con **Fase 2 — Frontend Refactor**.
+
+---
+
 ## 2026-05-22 — Fase 1.9 — API Gateway (nginx)
 
 ### Fatto

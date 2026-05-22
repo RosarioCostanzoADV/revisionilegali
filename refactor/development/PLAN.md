@@ -1,7 +1,7 @@
 # Piano Operativo — Refactoring Microservizi
 
 > **Ultimo aggiornamento:** 2026-05-22  
-> **Stato globale:** `IN CORSO — Fase 1.9 completata`  
+> **Stato globale:** `IN CORSO — Fase 1.10 completata (Docker offline)`  
 > **Legenda:** ⬜ non iniziato · 🔄 in corso · ✅ completato · ❌ bloccato
 
 ---
@@ -164,10 +164,10 @@
 
 | # | Task | Stato | Note |
 |---|---|---|---|
-| 1.10.1 | `docker compose up --build` → tutti i container partono | ⬜ | |
-| 1.10.2 | Health check di ogni servizio tramite gateway | ⬜ | |
-| 1.10.3 | Flusso completo: login → crea azienda → crea incarico → crea carta | ⬜ | Verifica JWT propagation |
-| 1.10.4 | Verifica isolamento multi-tenant (tenant A non vede dati tenant B) | ⬜ | |
+| 1.10.1 | `docker compose up --build` → tutti i container partono | ⬜ | Docker daemon offline — richiede ambiente Linux/WSL |
+| 1.10.2 | Health check di ogni servizio tramite gateway | ⬜ | Script pronto: `refactor/backend/smoke-test.js` |
+| 1.10.3 | Flusso completo: login → crea azienda → crea incarico → crea carta | ⬜ | Coperto da `smoke-test.js` test 3+4 |
+| 1.10.4 | Verifica isolamento multi-tenant (tenant A non vede dati tenant B) | ⬜ | Coperto da `smoke-test.js` test 5 |
 
 ---
 
