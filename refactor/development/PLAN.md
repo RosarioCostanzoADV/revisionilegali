@@ -1,7 +1,7 @@
 # Piano Operativo — Refactoring Microservizi
 
 > **Ultimo aggiornamento:** 2026-05-22  
-> **Stato globale:** `IN CORSO — Fase 1.6 completata`  
+> **Stato globale:** `IN CORSO — Fase 1.7 completata`  
 > **Legenda:** ⬜ non iniziato · 🔄 in corso · ✅ completato · ❌ bloccato
 
 ---
@@ -122,15 +122,15 @@
 
 | # | Task | Stato | Note |
 |---|---|---|---|
-| 1.7.1 | Scaffoldare con `create_ms.py accounting` | ⬜ | |
-| 1.7.2 | Creare modello `AccountingImport` (`accounting_imports`) | ⬜ | |
-| 1.7.3 | Creare modello `AccountingEntry` (`accounting_entries`) | ⬜ | |
-| 1.7.4 | Creare migrazioni DB | ⬜ | |
-| 1.7.5 | Portare parser CSV/XLSX/PDF da `lib/accounting/parsers.ts` | ⬜ | Convertire da TS a JS |
-| 1.7.6 | Implementare step 1: upload + parsing locale | ⬜ | |
-| 1.7.7 | Implementare step 2: salvataggio + chiamata interna a `ai-service` | ⬜ | |
-| 1.7.8 | Aggiungere al `docker-compose.yml` | ⬜ | |
-| 1.7.9 | Test: upload CSV → entries parsed → chiamata AI → entries saved | ⬜ | |
+| 1.7.1 | Scaffoldare con `create_ms.py accounting` | ✅ | |
+| 1.7.2 | Creare modello `AccountingImport` (`accounting_imports`) | ✅ | UUID PK, tenant_id, assignment_id, quarter_id, file_name, file_type, status enum 4, entry_count |
+| 1.7.3 | Creare modello `AccountingEntry` (`accounting_entries`) | ✅ | UUID PK, import_id FK CASCADE, balance, pdf_section, voce_bilancio |
+| 1.7.4 | Creare migrazioni DB | ✅ | 2 file con indici e FK CASCADE |
+| 1.7.5 | Portare parser CSV/XLSX/PDF da `lib/accounting/parsers.ts` | ✅ | `lib/parsers.js` — 1:1 da TS |
+| 1.7.6 | Implementare step 1: upload + parsing locale | ✅ | Parse async in background, risposta 202 immediata |
+| 1.7.7 | Implementare step 2: salvataggio + chiamata interna a `ai-service` | ⬜ | Rinviato a Phase 1.8 (ai-service non ancora implementato) |
+| 1.7.8 | Aggiungere al `docker-compose.yml` | ✅ | Già presente + STORAGE_ROOT env aggiunto |
+| 1.7.9 | Test: upload CSV → entries parsed → chiamata AI → entries saved | ⬜ | Docker offline — sintassi JS: OK |
 
 ### 1.8 `ai-service` (porta 3008, nessun DB)
 

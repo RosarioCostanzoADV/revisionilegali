@@ -250,7 +250,52 @@ Fase 1.6 — `document-service`: scaffolding, modelli `Document` + `Draft`, uplo
 Fase 1.7 — `accounting-service`: scaffolding, modelli `AccountingImport` + `AccountingEntry`, parser CSV/XLSX portato da `lib/accounting/parsers.ts`, chiamata interna ad `ai-service`.
 
 ---
+## 2026-05-22 — Fase 1.7 — `accounting-service`
 
+### Fatto
+- Scaffoldato `services/accounting/` tramite `create_ms.py accounting`
+- Aggiunto `multer`, `uuid`, `xlsx` a `package.json`
+- Aggiornato `config/config.js` con database `accounting_db`
+- Aggiornato `index.js`: SERVICE_NAME default = `accounting-service`
+- Aggiornato `middleware/auth.js`: controllo `tenant_id` + `requireSuperAdmin`
+- Creato `config/multer.js`: diskStorage in `/tmp/accounting_storage/<tenant_id>/`, 20 MB max, CSV/XLSX/PDF ammessi
+- Creati modelli Sequelize:
+  - `models/AccountingImport.js` — tabella `accounting_imports` (UUID PK, tenant_id, assignment_id, quarter_id nullable, file_name, file_type, status enum 4 valori, entry_count, error_message, imported_by)
+  - `models/AccountingEntry.js` — tabella `accounting_entries` (UUID PK, tenant_id, import_id FK CASCADE, account_code, account_name, balance, balance_prev, pdf_section, voce_bilancio, voce_bilancio_code, mapped_at)
+- Creati file di migrazione:
+  - `migrations/20260522000001-create-accounting-imports.js` — indici su tenant_id, assignment_id, quarter_id
+  - `migrations/20260522000002-create-accounting-entries.js` — FK CASCADE su import_id, indici su tenant_id e import_id
+- Portato `lib/accounting/parsers.ts` → `lib/parsers.js` 1:1 (TypeScript → CommonJS):
+  - `parseNumber()`, `detectSeparator()`, `splitCSVRow()`, `findCol()`
+  - `parseCSV()`, `parseSpreadsheet()` (usa `xlsx` npm)
+  - `parsePDF()` (usa `unpdf` con dynamic import, estrazione per pagina)
+  - `detectPageSectionType()`, `inferSectionFromCode()`, `extractEntriesFromText()`
+  - `keepHierarchyLeaves()` — filtra gerarchia conti puntati
+- Creato `controllers/importsController.js`:
+  - `createImport`: upload file + parse async in background (202 immediato); CSV → parseCSV, XLSX → parseSpreadsheet, PDF → parsePDF; bulkCreate entries; aggiorna status completed/error
+  - `listImports`: GET per tenant_id, filtro opzionale ?assignment_id
+  - `getImport`: GET per id (tenant isolation)
+  - `listEntries`: GET /:id/entries — tutte le voci dell'import
+  - `updateEntry`: PATCH /entries/:entryId — aggiorna voce_bilancio + mapped_at (per AI mapping)
+  - `deleteImport`: DELETE + CASCADE entries
+- Creato `routes/importsRoutes.js` e registrato in `routes/index.js` su `/imports`
+- Aggiornato `docker-compose.yml`: aggiunto `STORAGE_ROOT=/tmp/accounting_storage` al servizio accounting-service
+- Verifica sintattica JS: **tutti i 11 file OK** (`node --check`)
+
+### Decisioni prese
+- Parsing async in background: il POST risponde 202 subito, il client fa polling su GET /:id per status.
+- `voce_bilancio` aggiornabile separatamente: l'ai-service chiama PATCH /entries/:entryId per ogni voce mappata — disaccoppiamento totale.
+- I file vengono salvati in `/tmp` (nessun volume Docker necessario per accounting — file temporanei).
+- `pdf_section` conservata dalla fase parsing per uso AI (SP_A/SP_P/CE_R/CE_C).
+
+### Problemi / Blocchi
+- Docker daemon offline — smoke test da eseguire quando Docker è disponibile.
+- Integrazione con ai-service (PATCH /entries/:entryId) sarà cablata in Phase 1.8.
+
+### Prossimo step
+Fase 1.8 — `ai-service`: scaffolding, portare `lib/gemini/mapBilancio.ts`, endpoint interno POST /map-bilancio che riceve entries e restituisce mappature.
+
+---
 ## 2026-05-22 — Fase 1.2 — `tenant-service`
 
 ### Fatto

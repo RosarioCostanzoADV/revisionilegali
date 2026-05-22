@@ -335,6 +335,7 @@ services:
       - JWT_SECRET=${JWT_SECRET:-change_me_in_production}
       - AI_SERVICE_URL=http://ai-service:3008
       - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-change_me_in_production}
+      - STORAGE_ROOT=/tmp/accounting_storage
       - NODE_ENV=development
     ports:
       - "3007:3007"
