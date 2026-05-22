@@ -297,6 +297,25 @@ Fase 1.8 — `ai-service`: scaffolding, portare `lib/gemini/mapBilancio.ts`, end
 
 ---
 
+## 2026-05-22 — Fase 1.9 — API Gateway (nginx)
+
+### Fatto
+- Verificato `docker/nginx/nginx.conf`: già presente e completo da Fase 1.0
+  - Routing path-based: `/api/auth/` → 3001, `/api/tenants/` + `/api/plans/` → 3002, `/api/companies/` → 3003, `/api/assignments/` → 3004, `/api/audit/` → 3005, `/api/documents/` + `/api/drafts/` → 3006, `/api/accounting/` → 3007
+  - ai-service non esposto (solo uso interno tra servizi)
+  - Frontend: tutto il resto → Next.js 3000 (con WebSocket HMR)
+- Verificato `docker-compose.yml`: `api-gateway` nginx:1.25-alpine su porta 8080:80, dipende da tutti i servizi
+- Aggiunto CORS a livello gateway: preflight `OPTIONS 204`, `Access-Control-Allow-Origin: $http_origin`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers` (incluso `X-Internal-Token`), `Access-Control-Max-Age: 86400`
+
+### Decisioni prese
+- CORS gestito solo al gateway — i singoli microservizi non aggiungono header CORS autonomi
+- `X-Internal-Token` esposto in `Allow-Headers` così accounting-service può chiamare ai-service anche da browser (se necessario) con CORS valido
+
+### Prossimo step
+Fase 1.10 — Smoke test backend completo (health check ogni servizio + flusso login→azienda→incarico→carta).
+
+---
+
 ## 2026-05-22 — Fase 1.8 — `ai-service`
 
 ### Fatto

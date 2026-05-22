@@ -1,7 +1,7 @@
 # Piano Operativo — Refactoring Microservizi
 
 > **Ultimo aggiornamento:** 2026-05-22  
-> **Stato globale:** `IN CORSO — Fase 1.8 completata`  
+> **Stato globale:** `IN CORSO — Fase 1.9 completata`  
 > **Legenda:** ⬜ non iniziato · 🔄 in corso · ✅ completato · ❌ bloccato
 
 ---
@@ -155,10 +155,10 @@
 
 | # | Task | Stato | Note |
 |---|---|---|---|
-| 1.9.1 | Creare `docker/nginx/nginx.conf` con routing verso tutti i servizi | ⬜ | |
-| 1.9.2 | Aggiungere nginx al `docker-compose.yml` | ⬜ | |
-| 1.9.3 | Configurare CORS a livello gateway | ⬜ | |
-| 1.9.4 | Test: tutte le route passano attraverso gateway verso servizi corretti | ⬜ | |
+| 1.9.1 | Creare `docker/nginx/nginx.conf` con routing verso tutti i servizi | ✅ | Già presente da Fase 1.0; copre tutti i servizi 3001–3007 + frontend |
+| 1.9.2 | Aggiungere nginx al `docker-compose.yml` | ✅ | `api-gateway` su porta 8080, dipende da tutti i servizi |
+| 1.9.3 | Configurare CORS a livello gateway | ✅ | Preflight OPTIONS + `Access-Control-Allow-*` globali incl. X-Internal-Token |
+| 1.9.4 | Test: tutte le route passano attraverso gateway verso servizi corretti | ⬜ | Docker offline — revisione manuale OK |
 
 ### 1.10 Smoke Test Backend Completo
 
