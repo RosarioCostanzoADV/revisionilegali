@@ -374,6 +374,7 @@ services:
       - PORT=3008
       - SERVICE_NAME=ai-service
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-change_me_in_production}
       - NODE_ENV=development
     # Nessuna porta esposta verso host — solo comunicazione interna
     expose:

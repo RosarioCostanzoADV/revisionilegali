@@ -1,7 +1,7 @@
 # Piano Operativo — Refactoring Microservizi
 
 > **Ultimo aggiornamento:** 2026-05-22  
-> **Stato globale:** `IN CORSO — Fase 1.7 completata`  
+> **Stato globale:** `IN CORSO — Fase 1.8 completata`  
 > **Legenda:** ⬜ non iniziato · 🔄 in corso · ✅ completato · ❌ bloccato
 
 ---
@@ -136,8 +136,15 @@
 
 | # | Task | Stato | Note |
 |---|---|---|---|
-| 1.8.1 | Scaffoldare con `create_ms.py ai` | ⬜ | |
-| 1.8.2 | Portare logica `lib/gemini/mapBilancio.ts` in JS | ⬜ | |
+| 1.8.1 | Scaffoldare con `create_ms.py ai` | ✅ | |
+| 1.8.2 | Portare `lib/audit/classification.ts` in JS | ✅ | `lib/classification.js` — classifyAccount() + AUDIT_AREAS |
+| 1.8.3 | Portare logica `lib/gemini/mapBilancio.ts` in JS | ✅ | `lib/mapBilancio.js` — mapBilancioWithGemini(), enrichLocally(), fallback deterministico |
+| 1.8.4 | Eliminare dipendenza da DB (no Sequelize) | ✅ | index.js semplificato senza db.sequelize.authenticate() |
+| 1.8.5 | Aggiungere `@google/generative-ai` a package.json | ✅ | v0.21.0 |
+| 1.8.6 | Implementare auth inter-service con `X-Internal-Token` | ✅ | `middleware/auth.js` — authenticateInternal |
+| 1.8.7 | Implementare controller + endpoint POST /map-bilancio | ✅ | Fallback locale se Gemini fallisce; /local per test |
+| 1.8.8 | Aggiornare `docker-compose.yml` | ✅ | Già presente + INTERNAL_SERVICE_TOKEN aggiunto |
+| 1.8.9 | Test: POST /map-bilancio con entries reali | ⬜ | Docker offline — sintassi JS: OK |
 | 1.8.3 | Implementare `POST /internal/ai/map-bilancio` | ⬜ | Chiamata interna da accounting-service |
 | 1.8.4 | Implementare `POST /internal/ai/generate-draft` | ⬜ | Chiamata interna da document-service |
 | 1.8.5 | Implementare fallback modelli e timeout | ⬜ | flash-latest → flash-lite-latest |

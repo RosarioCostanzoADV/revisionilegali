@@ -296,6 +296,26 @@ Fase 1.7 — `accounting-service`: scaffolding, modelli `AccountingImport` + `Ac
 Fase 1.8 — `ai-service`: scaffolding, portare `lib/gemini/mapBilancio.ts`, endpoint interno POST /map-bilancio che riceve entries e restituisce mappature.
 
 ---
+
+## 2026-05-22 — Fase 1.8 — `ai-service`
+
+### Fatto
+- Scaffoldato `services/ai/` tramite `create_ms.py ai`
+- Rimosso Sequelize/PostgreSQL dal servizio (nessun DB necessario)
+- Aggiornato `index.js`: avvio diretto senza DB, porta 3008
+- Aggiornato `middleware/auth.js`: `authenticateInternal` (X-Internal-Token) + `authenticateToken`
+- Aggiornato `package.json`: rimossi pg/pg-hstore/sequelize, aggiunto `@google/generative-ai: ^0.21.0`
+- Portato `lib/audit/classification.ts` → `lib/classification.js`: `AUDIT_AREAS` + `classifyAccount()`
+- Portato `lib/gemini/mapBilancio.ts` → `lib/mapBilancio.js`: `mapBilancioWithGemini()`, `enrichLocally()`, fallback locale, timeout budget, modelli: gemini-flash-latest → gemini-flash-lite-latest
+- Creato `controllers/mapBilancioController.js`: POST /map-bilancio (AI + fallback) + POST /map-bilancio/local
+- Registrato su `routes/index.js` + `routes/mapBilancioRoutes.js`
+- Aggiornato `docker-compose.yml`: aggiunto INTERNAL_SERVICE_TOKEN
+- Verifica sintattica JS: **tutti i 7 file OK** (`node --check`)
+
+### Prossimo step
+Fase 1.9 — Verifica nginx gateway + revisione finale + smoke tests.
+
+---
 ## 2026-05-22 — Fase 1.2 — `tenant-service`
 
 ### Fatto
