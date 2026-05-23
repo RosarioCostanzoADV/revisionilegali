@@ -211,16 +211,17 @@
 
 | # | Task | Stato | Note |
 |---|---|---|---|
-| 4.1 | Definire checklist di equivalenza funzionale (feature per feature) | ⬜ | Basata su `analysis.md` §5 (flussi operativi) |
-| 4.2 | Test: flusso onboarding (nuovo tenant → primo accesso → completa onboarding) | ⬜ | |
-| 4.3 | Test: flusso incarico completo (crea azienda → incarico → trimestre → carta → rilievo → bozza) | ⬜ | |
-| 4.4 | Test: import contabile (upload CSV → parsing → AI mapping → voci salvate) | ⬜ | |
-| 4.5 | Test: vigilanza (init checklist da template → compila → salva) | ⬜ | |
-| 4.6 | Test: area admin (super_admin login → crea tenant → modifica piano) | ⬜ | |
-| 4.7 | Verifica sicurezza: tenant isolation (utente A non accede a dati tenant B) | ⬜ | |
-| 4.8 | Verifica sicurezza: ruoli (collaborator non può fare azioni admin) | ⬜ | |
-| 4.9 | Verifica sicurezza: JWT scaduto/invalido → 401 su tutti i servizi | ⬜ | |
-| 4.10 | Approvazione finale: tutti i test verdi → merge in `main` | ⬜ | |
+| 4.1 | Definire checklist di equivalenza funzionale (feature per feature) | ✅ | `refactor/development/VALIDATION_CHECKLIST.md` — 25 feature F01–F25 + flussi 4.2–4.9 |
+| 4.2 | Test: flusso onboarding | ✅ | `e2e-test.js` §4.2 — onboarding status, POST onboarding, RBAC |
+| 4.3 | Test: flusso incarico completo | ✅ | `e2e-test.js` §4.3 — company→assignment→4quarters→WP→finding→draft→chiudi |
+| 4.4 | Test: import contabile | ✅ | `e2e-test.js` §4.4 — upload CSV multipart + polling + entries |
+| 4.5 | Test: vigilanza | ✅ | `e2e-test.js` §4.5 — init template + 409 idempotenza + completa voci |
+| 4.6 | Test: area admin | ✅ | `e2e-test.js` §4.6 — super_admin CRUD tenant + piano + RBAC |
+| 4.7 | Verifica sicurezza: tenant isolation | ✅ | `e2e-test.js` §4.7 — 403/404 cross-tenant su company/assignment/WP |
+| 4.8 | Verifica sicurezza: ruoli RBAC | ✅ | `e2e-test.js` §4.8 — collaborator/revisor limitati |
+| 4.9 | Verifica sicurezza: JWT scaduto/invalido → 401 | ✅ | `e2e-test.js` §4.9 — no token, malformato, firma errata, scaduto |
+| 4.10 | Approvazione finale: tutti i test verdi → merge in `main` | ⬜ | Richiede esecuzione `e2e-test.js` con Docker attivo e conferma operatore |
+| seed | `scripts/seed_test_data.js` — seed DB test (5 utenti, 2 tenant, 3 piani) | ✅ | IDs fissi, idempotente, prerequisito per e2e-test.js |
 
 ---
 

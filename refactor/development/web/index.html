@@ -342,8 +342,8 @@
       <span class="phase-badge done">DONE</span>
     </button>
     <button class="nav-item" onclick="showPage('plan')" style="font-size:.8rem">
-      <span class="icon">⬜</span> Fase 4 — Validazione
-      <span class="phase-badge todo">TODO</span>
+      <span class="icon">🔄</span> Fase 4 — Validazione
+      <span class="phase-badge in-progress">IN CORSO</span>
     </button>
   </div>
 
@@ -383,7 +383,7 @@
       </div>
       <div class="status-card">
         <div class="s-label">Fase corrente</div>
-        <div class="s-value green" style="font-size:1rem;line-height:1.3">Fase 3 ✅<br><span style="font-size:.7rem;font-weight:400;color:var(--muted)">Prossima: Fase 4</span></div>
+        <div class="s-value green" style="font-size:1rem;line-height:1.3">Fase 4 🔄<br><span style="font-size:.7rem;font-weight:400;color:var(--muted)">Completare: merge main</span></div>
       </div>
       <div class="status-card">
         <div class="s-label">Smoke test</div>
@@ -416,7 +416,7 @@
       <div class="phase-card"><span class="p-num">F1</span><div><div class="p-name">Backend Microservizi</div><div class="p-info">8 servizi · Docker · nginx gateway · smoke test 29/29 · AI mapping</div></div><span class="p-status">✅</span></div>
       <div class="phase-card"><span class="p-num">F2</span><div><div class="p-name">Frontend Refactor</div><div class="p-info">frontend/ · gwJson/apiFetch · Dockerfile · Supabase rimosso</div></div><span class="p-status">✅</span></div>
       <div class="phase-card"><span class="p-num">F3</span><div><div class="p-name">Migrazione Dati</div><div class="p-info">export_supabase.sh · 7 migrate_*.sh · run_migrations.sh · verify_migration.sh · MIGRATION_NOTES.md</div></div><span class="p-status">✅</span></div>
-      <div class="phase-card"><span class="p-num">F4</span><div><div class="p-name">Validazione e Merge</div><div class="p-info">Test E2E · sicurezza · isolamento tenant · merge in main</div></div><span class="p-status">⬜</span></div>
+      <div class="phase-card"><span class="p-num">F4</span><div><div class="p-name">Validazione e Merge</div><div class="p-info">VALIDATION_CHECKLIST.md · seed_test_data.js · e2e-test.js (4.2–4.9) · merge main ⬜</div></div><span class="p-status">🔄</span></div>
     </div>
 
     <div style="margin-top:32px;padding:16px 20px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;font-size:.83rem;color:var(--text2)">
@@ -503,7 +503,7 @@
 # Piano Operativo — Refactoring Microservizi
 
 > **Ultimo aggiornamento:** 2026-05-23
-> **Stato globale:** `FASE 3 COMPLETATA — 11 script migrazione · CSV staging · idempotenti · prossima: Fase 4`
+> **Stato globale:** `FASE 4 IN CORSO — checklist + e2e-test.js pronti · da eseguire con Docker · poi merge main`
 > **Legenda:** ⬜ non iniziato · 🔄 in corso · ✅ completato · ❌ bloccato
 
 ---
@@ -707,16 +707,17 @@
 
 | # | Task | Stato | Note |
 |---|---|---|---|
-| 4.1 | Definire checklist di equivalenza funzionale | ⬜ | Basata su `analysis.md` §5 |
-| 4.2 | Test: flusso onboarding completo | ⬜ | |
-| 4.3 | Test: flusso incarico completo | ⬜ | |
-| 4.4 | Test: import contabile (upload → parsing → AI mapping) | ⬜ | |
-| 4.5 | Test: vigilanza (init checklist → compila → salva) | ⬜ | |
-| 4.6 | Test: area admin (super_admin → crea tenant → modifica piano) | ⬜ | |
-| 4.7 | Verifica sicurezza: tenant isolation | ⬜ | |
-| 4.8 | Verifica sicurezza: ruoli RBAC | ⬜ | |
-| 4.9 | Verifica sicurezza: JWT scaduto → 401 su tutti i servizi | ⬜ | |
-| 4.10 | Approvazione finale → merge in `main` | ⬜ | |
+| 4.1 | Definire checklist equivalenza funzionale | ✅ | `VALIDATION_CHECKLIST.md` — 25 feature F01–F25 |
+| 4.2 | Test: flusso onboarding completo | ✅ | `e2e-test.js` §4.2 |
+| 4.3 | Test: flusso incarico completo | ✅ | `e2e-test.js` §4.3 |
+| 4.4 | Test: import contabile (upload → parsing → AI mapping) | ✅ | `e2e-test.js` §4.4 |
+| 4.5 | Test: vigilanza (init checklist → compila → salva) | ✅ | `e2e-test.js` §4.5 |
+| 4.6 | Test: area admin (super_admin → crea tenant → modifica piano) | ✅ | `e2e-test.js` §4.6 |
+| 4.7 | Verifica sicurezza: tenant isolation | ✅ | `e2e-test.js` §4.7 — TI-01–TI-08 |
+| 4.8 | Verifica sicurezza: ruoli RBAC | ✅ | `e2e-test.js` §4.8 — RB-01–RB-08 |
+| 4.9 | Verifica sicurezza: JWT scaduto → 401 su tutti i servizi | ✅ | `e2e-test.js` §4.9 |
+| 4.10 | Approvazione finale → merge in `main` | ⬜ | Da eseguire con Docker attivo + conferma operatore |
+| seed | `scripts/seed_test_data.js` — seed utenti test | ✅ | 5 utenti + 2 tenant + 3 piani |
 </script>
 
 <script type="text/plain" id="md-progress">

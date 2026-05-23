@@ -551,13 +551,32 @@ Creare gli script per migrare tutti i dati da Supabase (monolite) ai DB dei micr
 
 ---
 
-## YYYY-MM-DD — <Titolo step>
+## 2026-05-23 — Fase 4 — Validazione (4.1–4.9)
 
 ### Fatto
-- 
+- Creata `refactor/development/VALIDATION_CHECKLIST.md` (4.1): checklist equivalenza funzionale con 25 feature F01–F25, flussi 4.2–4.9 (step-by-step), test sicurezza TI-01–TI-08, RB-01–RB-08, JWT-01–JWT-07
+- Creato `refactor/backend/scripts/seed_test_data.js`: seed idempotente per auth_db + tenant_db; crea 5 utenti test (super_admin, 2 tenant_owner, collaborator, revisor) + 2 tenant + 3 piani con IDs fissi riproducibili
+- Creato `refactor/backend/e2e-test.js`: test E2E automatizzato completo (480+ righe) che copre:
+  - 4.2 — Flusso onboarding (GET status, POST onboarding, RBAC accesso lista)
+  - 4.3 — Flusso incarico completo (company → assignment → 4 quarters → WP state machine → finding closed_at auto → draft template → definitivo → chiudi)
+  - 4.4 — Import contabile (upload CSV multipart → polling status → verifica entries)
+  - 4.5 — Vigilanza (init da template → idempotenza 409 → lista ≥14 voci → completa/de-seleziona)
+  - 4.6 — Area admin (GET /api/tenants, GET /api/plans, PATCH piano, RBAC 403)
+  - 4.7 — Tenant isolation (lista, GET :id, PATCH cross-tenant → 403/404 atteso)
+  - 4.8 — RBAC ruoli (collaborator bloccato su POST/DELETE/users; revisor bloccato su chiudi incarico)
+  - 4.9 — JWT security (no token, malformato, firma errata, scaduto → 401)
+
+### Decisioni prese
+- Il test E2E crea dati propri (non dipende da dati preesistenti) per garantire riproducibilità
+- Il polling dell'import contabile ha timeout 30s (15 × 2s) per attendere AI service
+- I test di isolamento tenant usano IDs fissi dal seed (deterministici)
+- 4.10 (merge in main) richiede conferma manuale dell'operatore dopo che tutti i test sono verdi
 
 ### Problemi / Blocchi
-- 
+- Nessun blocco. Script pronti per essere eseguiti con Docker attivo.
+
+### Prossimo step
+**FASE 4 script creati** (4.1–4.9). Eseguire i test con stack Docker attivo, poi merge in main (4.10).
 
 ### Decisioni prese
 - 
