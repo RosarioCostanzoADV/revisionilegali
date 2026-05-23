@@ -1,7 +1,77 @@
 'use strict';
 
-const fs = require('fs');
+const fs   = require('fs');
+const http = require('http');
 const { parseCSV, parseSpreadsheet, parsePDF } = require('../lib/parsers');
+
+const AI_SERVICE_URL       = process.env.AI_SERVICE_URL       || 'http://ai-service:3008';
+const INTERNAL_SERVICE_TOKEN = process.env.INTERNAL_SERVICE_TOKEN || 'change_me_in_production';
+
+/**
+ * Chiama ai-service per mappare le voci contabili.
+ * Restituisce un array parallelo a `entries` con i campi AI,
+ * oppure null in caso di errore (fallback: voci salvate senza mappatura).
+ */
+function callAiService(entries) {
+  return new Promise((resolve) => {
+    const payload = JSON.stringify({
+      entries: entries.map((e) => ({
+        account_code: e.account_code || null,
+        account_name: e.account_name,
+        balance:      e.balance,
+        balance_prev: e.balance_prev || null,
+        pdf_section:  e.pdf_section  || null,
+      })),
+    });
+
+    const url  = new URL('/api/map-bilancio', AI_SERVICE_URL);
+    const opts = {
+      hostname: url.hostname,
+      port:     url.port || 80,
+      path:     url.pathname,
+      method:   'POST',
+      headers:  {
+        'Content-Type':     'application/json',
+        'Content-Length':   Buffer.byteLength(payload),
+        'X-Internal-Token': INTERNAL_SERVICE_TOKEN,
+      },
+    };
+
+    const req = http.request(opts, (res) => {
+      let raw = '';
+      res.on('data', (c) => (raw += c));
+      res.on('end', () => {
+        try {
+          const body = JSON.parse(raw);
+          if (res.statusCode === 200 && Array.isArray(body.entries)) {
+            // Restituisce array indicizzato parallelo a `entries`
+            resolve(body.entries);
+          } else {
+            console.warn('ai-service risposta inattesa:', res.statusCode);
+            resolve(null);
+          }
+        } catch {
+          console.warn('ai-service risposta non parsabile');
+          resolve(null);
+        }
+      });
+    });
+
+    req.setTimeout(30_000, () => {
+      console.warn('ai-service timeout — mapping saltato');
+      req.destroy();
+      resolve(null);
+    });
+
+    req.on('error', (err) => {
+      console.warn('ai-service non raggiungibile:', err.message);
+      resolve(null);
+    });
+
+    req.write(payload);
+    req.end();
+  });
+}
 
 /**
  * POST /api/accounting/imports
@@ -76,15 +146,24 @@ async function createImport(req, res) {
       }
 
       if (entries.length > 0) {
-        const rows = entries.map((e) => ({
-          tenant_id: tenantId,
-          import_id: importRecord.id,
-          account_code: e.account_code || null,
-          account_name: e.account_name,
-          balance: e.balance,
-          balance_prev: e.balance_prev || null,
-          pdf_section: e.pdf_section || null,
-        }));
+        // Chiama ai-service per la mappatura delle voci (fire-and-wait con fallback)
+        const aiEntries = await callAiService(entries);
+
+        const rows = entries.map((e, i) => {
+          const ai = aiEntries?.[i];
+          return {
+            tenant_id:          tenantId,
+            import_id:          importRecord.id,
+            account_code:       e.account_code       || null,
+            account_name:       e.account_name,
+            balance:            e.balance,
+            balance_prev:       e.balance_prev        || null,
+            pdf_section:        e.pdf_section         || null,
+            voce_bilancio:      ai?.voce_standard      ?? null,
+            voce_bilancio_code: ai?.schema_civilistico ?? null,
+            mapped_at:          ai ? new Date()        : null,
+          };
+        });
         await AccountingEntry.bulkCreate(rows);
       }
 

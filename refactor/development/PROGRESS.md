@@ -432,7 +432,38 @@ Fase 1.3 — `company-service`: scaffolding, modello `Company`, CRUD aziende con
 - DB di ogni microservizio isolato (no FK cross-service): isolamento completo tra servizi
 
 ### Prossimo step
-Task 1.7.7 — accounting-service chiama ai-service per classificazione AI voci di bilancio, poi Fase 2 (Frontend refactoring).
+Fase 2 — Frontend refactoring.
+
+---
+
+## 2026-05-23 — Task 1.7.7 — accounting-service → ai-service (classificazione AI)
+
+### Fatto
+- Implementata integrazione HTTP tra `accounting-service` e `ai-service` in `controllers/importsController.js`
+- Aggiunta funzione `callAiService(entries)` basata su modulo `http` nativo Node.js (nessuna nuova dipendenza):
+  - `POST http://ai-service:3008/api/map-bilancio`
+  - Header `X-Internal-Token` con `process.env.INTERNAL_SERVICE_TOKEN`
+  - Timeout 30s; fallback silenzioso su errore (entries salvate senza mappatura)
+  - Restituisce array indicizzato parallelo all'input (no lookup by key → nessun rischio collisione)
+- Nel background processing di `createImport`, dopo il parsing:
+  1. Chiama `callAiService(entries)`
+  2. Mappa `ai?.voce_standard` → `voce_bilancio`, `ai?.schema_civilistico` → `voce_bilancio_code`, `mapped_at = new Date()`
+  3. `bulkCreate` con tutti i campi AI popolati (o null se ai-service non disponibile)
+- Testata comunicazione interna: `docker exec accounting-service node -e "..."` → status 200, classificazione locale attiva (fallback perché `GEMINI_API_KEY` non configurato in dev)
+
+### Risultato
+- accounting-service → ai-service: **funzionante** ✓
+- Ogni import ora classifica automaticamente le voci (`schema_civilistico`, `audit_area`) e popola `voce_bilancio_code`
+- Quando `GEMINI_API_KEY` è configurato in produzione, `voce_standard` (voce civilistica Gemini) viene popolato
+
+### Decisioni prese
+- `http` nativo anziché `node-fetch` — nessuna dipendenza aggiuntiva
+- Array indicizzato per il matching dei risultati (ordine garantito da ai-service)
+- `voce_bilancio_code` ← `schema_civilistico` (SP_A/SP_P/CE); il campo `audit_area` non viene persistito in accounting (usato internamente dall'audit-service)
+- Fallback silenzioso: se ai-service non risponde, l'import non fallisce — le voci vengono salvate senza mappatura AI
+
+### Prossimo step
+Fase 2 — Frontend refactoring.
 
 ---
 
