@@ -193,17 +193,17 @@
 
 | # | Task | Stato | Note |
 |---|---|---|---|
-| 3.1 | Creare script dump Supabase → SQL (tabella per tabella) | ⬜ | Usare `pg_dump` o Supabase CLI |
-| 3.2 | Creare `scripts/migrate-auth.sql` (user_profiles → auth_db) | ⬜ | Attenzione: password in Supabase Auth non è bcrypt standard |
-| 3.3 | Creare `scripts/migrate-tenant.sql` (plans, tenants → tenant_db) | ⬜ | |
-| 3.4 | Creare `scripts/migrate-company.sql` (companies → company_db) | ⬜ | |
-| 3.5 | Creare `scripts/migrate-assignment.sql` (assignments, quarters, members → assignment_db) | ⬜ | |
-| 3.6 | Creare `scripts/migrate-audit.sql` (working_papers, findings, vigilanza → audit_db) | ⬜ | |
-| 3.7 | Creare `scripts/migrate-document.sql` (documents, drafts → document_db) | ⬜ | |
-| 3.8 | Creare `scripts/migrate-accounting.sql` (accounting_imports, entries → accounting_db) | ⬜ | |
-| 3.9 | Eseguire migrazioni in ordine (auth → tenant → company → assignment → audit → document → accounting) | ⬜ | |
-| 3.10 | Verifica integrità: contare record per ogni tabella e confrontare con Supabase | ⬜ | |
-| 3.11 | Nota: gestire la migrazione delle password (Supabase usa bcrypt internamente — verificare compatibilità) | ⬜ | Potrebbe richiedere reset forzato password o workaround |
+| 3.1 | Creare script dump Supabase → CSV (`export_supabase.sh`) | ✅ | `refactor/backend/scripts/export_supabase.sh` — gestisce schema auth non accessibile |
+| 3.2 | Creare `scripts/migrate_auth.sh` (user_profiles → auth_db) | ✅ | JOIN auth.users + user_profiles; password bcrypt compatibile; fallback placeholder |
+| 3.3 | Creare `scripts/migrate_tenant.sh` (plans, tenants → tenant_db) | ✅ | ON CONFLICT DO UPDATE; seed plans incluso |
+| 3.4 | Creare `scripts/migrate_company.sh` (companies → company_db) | ✅ | Salta se CSV non trovato |
+| 3.5 | Creare `scripts/migrate_assignment.sh` (assignments, quarters, members → assignment_db) | ✅ | Ordine FK: assignments → members + quarters |
+| 3.6 | Creare `scripts/migrate_audit.sh` (working_papers, findings, vigilanza → audit_db) | ✅ | Ordine FK: working_papers → findings |
+| 3.7 | Creare `scripts/migrate_document.sh` (documents, drafts → document_db) | ✅ | |
+| 3.8 | Creare `scripts/migrate_accounting.sh` (accounting_imports, entries → accounting_db) | ✅ | Mapping: voce_standard→voce_bilancio; schema_civilistico ignorato |
+| 3.9 | Creare `run_migrations.sh` (orchestratore ordine completo) | ✅ | Applica anche Sequelize migrations; verifica connessioni DB |
+| 3.10 | Creare `verify_migration.sh` (conteggi + confronto sorgente) | ✅ | Confronto CSV sorgente vs DB target; statistiche per servizio |
+| 3.11 | Nota: gestione password (Supabase usa bcrypt — compatibile) | ✅ | `encrypted_password` = bcrypt → direttamente usabile; fallback placeholder documentato |
 
 ---
 

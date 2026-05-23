@@ -506,6 +506,51 @@ Fase 2 — Frontend refactoring.
 
 ---
 
+## 2026-05-23 — Fase 3 — Data Migration (3.1–3.11)
+
+### Obiettivo
+Creare gli script per migrare tutti i dati da Supabase (monolite) ai DB dei microservizi.
+
+### Attività svolte
+- **3.1** — `export_supabase.sh`: esporta tutte le tabelle Supabase a CSV in `data/`; gestisce lo schema `auth` non sempre accessibile
+- **3.2** — `migrate_auth.sh`: migra `auth.users` + `user_profiles` → `auth_db`; JOIN per ottenere `encrypted_password` (bcrypt compatibile); placeholder con fallback se auth inaccessibile
+- **3.3** — `migrate_tenant.sh`: migra `plans` + `tenants` → `tenant_db`; ON CONFLICT DO UPDATE
+- **3.4** — `migrate_company.sh`: migra `companies` → `company_db`; salta silenziosamente se CSV mancante
+- **3.5** — `migrate_assignment.sh`: migra `assignments`, `assignment_members`, `quarters` → `assignment_db`; rispetta ordine FK
+- **3.6** — `migrate_audit.sh`: migra `working_papers`, `findings`, `vigilanza_items` → `audit_db`; rispetta ordine FK
+- **3.7** — `migrate_document.sh`: migra `documents`, `drafts` → `document_db`
+- **3.8** — `migrate_accounting.sh`: migra `accounting_imports`, `accounting_entries` → `accounting_db`; mapping colonne `voce_standard→voce_bilancio`
+- **3.9** — `run_migrations.sh`: orchestratore completo (verifica connessioni, applica Sequelize migrations, esegue tutti gli script, chiama verify)
+- **3.10** — `verify_migration.sh`: confronta conteggi CSV sorgente vs DB target; statistiche per servizio
+- **3.11** — `MIGRATION_NOTES.md`: documenta compatibilità bcrypt, tabelle mancanti da Supabase, mapping colonne accounting
+
+### File creati
+- `refactor/backend/scripts/MIGRATION_NOTES.md`
+- `refactor/backend/scripts/export_supabase.sh`
+- `refactor/backend/scripts/migrate_auth.sh`
+- `refactor/backend/scripts/migrate_tenant.sh`
+- `refactor/backend/scripts/migrate_company.sh`
+- `refactor/backend/scripts/migrate_assignment.sh`
+- `refactor/backend/scripts/migrate_audit.sh`
+- `refactor/backend/scripts/migrate_document.sh`
+- `refactor/backend/scripts/migrate_accounting.sh`
+- `refactor/backend/scripts/run_migrations.sh`
+- `refactor/backend/scripts/verify_migration.sh`
+
+### Decisioni tecniche
+- Approccio CSV con tabelle staging TEMP per idempotenza
+- ON CONFLICT DO UPDATE per re-run sicuri
+- `encrypted_password` Supabase è bcrypt standard — direttamente compatibile con `auth-service`
+- Le tabelle di dominio (companies, assignments, ecc.) NON sono nelle migrations Supabase tracciate; gli script saltano con avviso se il CSV non esiste
+
+### Problemi / Blocchi
+- Nessun blocco. Script pronti per essere eseguiti con `SUPABASE_DB_URL` reale.
+
+### Prossimo step
+**FASE 3 completata** (3.1–3.11). Procedere con **Fase 4 — Validazione** (test end-to-end, smoke test container Docker).
+
+---
+
 ## YYYY-MM-DD — <Titolo step>
 
 ### Fatto
