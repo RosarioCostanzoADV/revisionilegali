@@ -175,15 +175,15 @@
 
 | # | Task | Stato | Note |
 |---|---|---|---|
-| 2.1 | Creare `frontend/` copiando il codice Next.js attuale | ⬜ | Mantenere radice invariata fino a fine migrazione |
-| 2.2 | Rimuovere tutti i Route Handlers (`app/api/**`) | ⬜ | Sostituiti dai microservizi |
-| 2.3 | Creare `lib/api.ts` — client HTTP verso il gateway | ⬜ | Centralizza fetch + auth header |
-| 2.4 | Aggiornare middleware Next.js: sostituire Supabase con chiamate a `auth-service` e `tenant-service` | ⬜ | |
-| 2.5 | Sostituire `createClient()` Supabase nei Server Components con fetch al gateway | ⬜ | |
-| 2.6 | Sostituire le chiamate nei Client Components Form con fetch al gateway | ⬜ | |
-| 2.7 | Rimuovere le dipendenze Supabase dal `package.json` frontend | ⬜ | |
-| 2.8 | Creare `Dockerfile` per il frontend | ⬜ | |
-| 2.9 | Aggiungere frontend al `docker-compose.yml` | ⬜ | |
+| 2.1 | Creare `frontend/` copiando il codice Next.js attuale | ✅ | rsync da radice; rimossa `app/api/**` |
+| 2.2 | Rimuovere tutti i Route Handlers (`app/api/**`) | ✅ | Sostituiti dai microservizi |
+| 2.3 | Creare `lib/api.ts` — client HTTP verso il gateway | ✅ | `gw()` + `gwJson()` server-side; `apiFetch()` client-side in `lib/client-api.ts`; tipi in `lib/types.ts` |
+| 2.4 | Aggiornare middleware Next.js: sostituire Supabase con chiamate a `auth-service` e `tenant-service` | ✅ | JWT validate via `GET /api/auth/verify`; tenant status via `GET /api/tenants/:id/status` |
+| 2.5 | Sostituire `createClient()` Supabase nei Server Components con fetch al gateway | ✅ | Tutte le ~28 pages riscritte con `gwJson()` |
+| 2.6 | Sostituire le chiamate nei Client Components Form con fetch al gateway | ✅ | URL batch-replace + ProfiloForm/TenantSettingsForm fix manuale |
+| 2.7 | Rimuovere le dipendenze Supabase dal `package.json` frontend | ✅ | Rimossi `@supabase/ssr` e `@supabase/supabase-js` |
+| 2.8 | Creare `Dockerfile` per il frontend | ✅ | Build multi-stage; `output: standalone` in next.config.mjs |
+| 2.9 | Aggiungere frontend al `docker-compose.yml` | ✅ | `build: ../frontend`; env `GATEWAY_URL` + `NEXT_PUBLIC_GATEWAY_URL` |
 | 2.10 | Test: frontend parte in container e carica la homepage | ⬜ | |
 | 2.11 | Test end-to-end login → dashboard → operazioni base | ⬜ | |
 

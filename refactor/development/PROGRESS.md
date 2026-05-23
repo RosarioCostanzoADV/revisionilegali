@@ -467,7 +467,44 @@ Fase 2 — Frontend refactoring.
 
 ---
 
-<!-- Template per entry future:
+## 2026-05-23 — Fase 2 — Frontend Refactor (2.1–2.9)
+
+### Fatto
+- **2.1** Creata cartella `frontend/` tramite rsync dalla radice Next.js; rimossa `app/api/**` (Route Handlers sostituiti dai microservizi)
+- **2.2** Rimossa cartella `app/api/` dal frontend (tutti i Route Handlers)
+- **2.3** Creati:
+  - `frontend/lib/api.ts` — wrapper server-side `gw()` + `gwJson<T>()` che legge cookie `auth_token` da `next/headers`
+  - `frontend/lib/client-api.ts` — wrapper browser `apiFetch()`, `setAuthToken()`, `clearAuthToken()`, `getAuthToken()`
+  - `frontend/lib/types.ts` — tipi condivisi `UserRole`, `TenantStatus`, `Plan`, `Tenant`, `UserProfile`, `MeResponse`
+- **2.4** Riscritto `frontend/middleware.ts`: validazione JWT via `GET /api/auth/verify`; stato tenant via `GET /api/tenants/:id/status`; nessuna dipendenza Supabase
+- **2.5** Riscritti tutti i Server Components (~28 pagine):
+  - Layout admin e tenant: `gwJson<MeResponse>("/api/auth/me")` + redirect su ruolo
+  - Dashboard, aziende, incarichi, profilo, onboarding, settings, utenti, piano
+  - Nested pages: `[id]/` azienda, incarico, trimestre, carte di lavoro, rilievi, import, bozze, stampa
+  - Admin pages: dashboard, tenants, tenants/[id], tenants/new, plans
+- **2.6** Aggiornati tutti i Client Components Form:
+  - Batch URL replace: `/api/tenant/*` → `/api/...` nuovi endpoint, `/api/admin/*` → `/api/...`
+  - `ProfiloForm.tsx`: rimosso `supabase.auth.updateUser`, usa `apiFetch("/api/auth/update-password")`
+  - `TenantSettingsForm.tsx`: usa `apiFetch(\`/api/tenants/${tenant.id}\`)`
+  - Fix import types: `@/lib/supabase/types` → `@/lib/types` in `NewTenantForm` e `TenantActions`
+- **2.7** Rimossi `@supabase/ssr` e `@supabase/supabase-js` da `frontend/package.json`
+- **2.8** Creato `frontend/Dockerfile` multi-stage (deps → builder → runner); aggiunto `output: "standalone"` a `frontend/next.config.mjs`
+- **2.9** Aggiornato `docker/docker-compose.yml`: servizio frontend con `build: ../frontend`, env `GATEWAY_URL=http://api-gateway:80` e `NEXT_PUBLIC_GATEWAY_URL=http://localhost:8080`
+- **Fix nginx.conf**: aggiunta route `location /api/quarters { proxy_pass http://assignment-service:3004; }` (mancante — quarters sono gestiti dall'assignment-service)
+
+### Decisioni prese
+- Server Components usano `gwJson()` (SSR, cookie `auth_token` letto via `next/headers`); Client Components usano `apiFetch()` (browser, cookie letto da `document.cookie`) o `fetch()` diretto verso URL relativi
+- `GATEWAY_URL` per richieste SSR container-to-container; `NEXT_PUBLIC_GATEWAY_URL` per client browser
+- `output: standalone` in next.config.mjs abilita il Dockerfile multi-stage senza `next start` completo
+- `draft.created_by_name` e `imp.uploaded_by_name`: i microservizi espongono già il nome dell'utente inline (nessun join separato dal frontend)
+
+### Problemi / Blocchi
+- Nessun blocco; test runtime (2.10–2.11) ancora da eseguire con Docker attivo
+
+### Prossimo step
+**FASE 2 completata** (2.1–2.9). Procedere con test container frontend (2.10–2.11) e poi **Fase 3 — Migrazione Dati**.
+
+---
 
 ## YYYY-MM-DD — <Titolo step>
 

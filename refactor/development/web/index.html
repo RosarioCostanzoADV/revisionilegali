@@ -334,7 +334,7 @@
       <span class="phase-badge done">✓</span>
     </button>
     <button class="nav-item" onclick="showPage('plan')" style="font-size:.8rem">
-      <span class="icon">⬜</span> Fase 2 — Frontend
+      <span class="icon">✅</span> Fase 2 — Frontend
       <span class="phase-badge todo">TODO</span>
     </button>
     <button class="nav-item" onclick="showPage('plan')" style="font-size:.8rem">
@@ -383,7 +383,7 @@
       </div>
       <div class="status-card">
         <div class="s-label">Fase corrente</div>
-        <div class="s-value green" style="font-size:1rem;line-height:1.3">Fase 1 ✅<br><span style="font-size:.7rem;font-weight:400;color:var(--muted)">Prossima: Fase 2</span></div>
+        <div class="s-value green" style="font-size:1rem;line-height:1.3">Fase 2 ✅<br><span style="font-size:.7rem;font-weight:400;color:var(--muted)">Prossima: Fase 3</span></div>
       </div>
       <div class="status-card">
         <div class="s-label">Smoke test</div>
@@ -414,7 +414,7 @@
     <div class="phase-grid">
       <div class="phase-card"><span class="p-num">F0</span><div><div class="p-name">Setup e Preparazione</div><div class="p-info">Branch git · hub di tracking · template microservizio · create_ms.py</div></div><span class="p-status">✅</span></div>
       <div class="phase-card"><span class="p-num">F1</span><div><div class="p-name">Backend Microservizi</div><div class="p-info">8 servizi · Docker · nginx gateway · smoke test 29/29 · AI mapping</div></div><span class="p-status">✅</span></div>
-      <div class="phase-card"><span class="p-num">F2</span><div><div class="p-name">Frontend Refactor</div><div class="p-info">Rimozione Route Handlers · client API verso gateway · Dockerfile</div></div><span class="p-status">⬜</span></div>
+      <div class="phase-card"><span class="p-num">F2</span><div><div class="p-name">Frontend Refactor</div><div class="p-info">frontend/ · gwJson/apiFetch · Dockerfile · Supabase rimosso</div></div><span class="p-status">✅</span></div>
       <div class="phase-card"><span class="p-num">F3</span><div><div class="p-name">Migrazione Dati</div><div class="p-info">Dump Supabase → script SQL per ogni microDB</div></div><span class="p-status">⬜</span></div>
       <div class="phase-card"><span class="p-num">F4</span><div><div class="p-name">Validazione e Merge</div><div class="p-info">Test E2E · sicurezza · isolamento tenant · merge in main</div></div><span class="p-status">⬜</span></div>
     </div>
@@ -503,7 +503,7 @@
 # Piano Operativo — Refactoring Microservizi
 
 > **Ultimo aggiornamento:** 2026-05-23
-> **Stato globale:** `FASE 1 COMPLETATA — Docker attivo · smoke test 29/29 · prossima: Fase 2`
+> **Stato globale:** `FASE 2 COMPLETATA — frontend/ refactored · Supabase rimosso · Dockerfile · prossima: Fase 3`
 > **Legenda:** ⬜ non iniziato · 🔄 in corso · ✅ completato · ❌ bloccato
 
 ---
@@ -671,15 +671,15 @@
 
 | # | Task | Stato | Note |
 |---|---|---|---|
-| 2.1 | Creare `frontend/` copiando il codice Next.js attuale | ⬜ | Mantenere radice invariata fino a fine migrazione |
-| 2.2 | Rimuovere tutti i Route Handlers (`app/api/**`) | ⬜ | Sostituiti dai microservizi |
-| 2.3 | Creare `lib/api.ts` — client HTTP verso il gateway | ⬜ | Centralizza fetch + auth header |
-| 2.4 | Aggiornare middleware Next.js | ⬜ | Sostituire Supabase con auth-service + tenant-service |
-| 2.5 | Sostituire `createClient()` Supabase nei Server Components | ⬜ | Fetch al gateway |
-| 2.6 | Sostituire le chiamate nei Client Components | ⬜ | Fetch al gateway |
-| 2.7 | Rimuovere dipendenze Supabase dal `package.json` frontend | ⬜ | |
-| 2.8 | Creare `Dockerfile` per il frontend | ⬜ | |
-| 2.9 | Aggiungere frontend al `docker-compose.yml` | ⬜ | |
+| 2.1 | Creare `frontend/` copiando il codice Next.js attuale | ✅ | rsync da radice; rimossa `app/api/**` |
+| 2.2 | Rimuovere tutti i Route Handlers (`app/api/**`) | ✅ | Sostituiti dai microservizi |
+| 2.3 | Creare `lib/api.ts` — client HTTP verso il gateway | ✅ | `gwJson()` server-side + `apiFetch()` client-side + `lib/types.ts` |
+| 2.4 | Aggiornare middleware Next.js | ✅ | JWT via `GET /api/auth/verify`; tenant via `GET /api/tenants/:id/status` |
+| 2.5 | Sostituire `createClient()` Supabase nei Server Components | ✅ | ~28 pages riscritte con `gwJson()` |
+| 2.6 | Sostituire le chiamate nei Client Components | ✅ | URL batch-replace + ProfiloForm/TenantSettingsForm fix |
+| 2.7 | Rimuovere dipendenze Supabase dal `package.json` frontend | ✅ | Rimossi `@supabase/ssr` e `@supabase/supabase-js` |
+| 2.8 | Creare `Dockerfile` per il frontend | ✅ | Build multi-stage, `output: standalone` |
+| 2.9 | Aggiungere frontend al `docker-compose.yml` | ✅ | `build: ../frontend`, env `GATEWAY_URL` + `NEXT_PUBLIC_GATEWAY_URL` |
 | 2.10 | Test: frontend in container carica la homepage | ⬜ | |
 | 2.11 | Test end-to-end login → dashboard → operazioni base | ⬜ | |
 
