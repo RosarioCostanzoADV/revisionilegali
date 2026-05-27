@@ -24,8 +24,21 @@ jobs:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
           install -m 700 -d ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+
+          # Supporta secret in formato multiline, con \n escaped o base64.
+          printf '%s' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519.raw
+
+          if grep -q 'BEGIN OPENSSH PRIVATE KEY\|BEGIN RSA PRIVATE KEY\|BEGIN EC PRIVATE KEY' ~/.ssh/id_ed25519.raw; then
+            cp ~/.ssh/id_ed25519.raw ~/.ssh/id_ed25519
+          elif grep -q '\\n' ~/.ssh/id_ed25519.raw; then
+            perl -pe 's/\\n/\n/g' ~/.ssh/id_ed25519.raw > ~/.ssh/id_ed25519
+          else
+            base64 -d ~/.ssh/id_ed25519.raw > ~/.ssh/id_ed25519
+          fi
+
           chmod 600 ~/.ssh/id_ed25519
+          ssh-keygen -y -f ~/.ssh/id_ed25519 >/dev/null
+          rm -f ~/.ssh/id_ed25519.raw
 
       - name: Add deploy host to known_hosts
         env:
@@ -50,6 +63,7 @@ jobs:
             --exclude 'dist' \
             --exclude 'coverage' \
             --exclude 'docker/.env' \
+            --exclude 'refactor/backend/scripts/data/*.csv' \
             -e "ssh -p $PORT -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes" \
             ./ "$DEPLOY_USER@$DEPLOY_HOST:/opt/revisionilegali/"
 
