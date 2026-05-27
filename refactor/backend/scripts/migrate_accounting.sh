@@ -36,7 +36,8 @@ else
   echo "⬆️   Caricamento $ROW_COUNT import contabili..."
 
   psql "$ACCOUNTING_DB_URL" <<ENDSQL
-CREATE TEMP TABLE _stg_accounting_imports (
+DROP TABLE IF EXISTS _stg_accounting_imports;
+CREATE TABLE _stg_accounting_imports (
   id            UUID,
   tenant_id     UUID,
   assignment_id UUID,
@@ -90,7 +91,8 @@ else
   echo "⬆️   Caricamento $ROW_COUNT voci contabili..."
 
   psql "$ACCOUNTING_DB_URL" <<ENDSQL
-CREATE TEMP TABLE _stg_accounting_entries (
+DROP TABLE IF EXISTS _stg_accounting_entries;
+CREATE TABLE _stg_accounting_entries (
   id             UUID,
   tenant_id      UUID,
   import_id      UUID,

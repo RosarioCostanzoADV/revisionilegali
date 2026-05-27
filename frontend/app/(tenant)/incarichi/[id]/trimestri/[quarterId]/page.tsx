@@ -40,19 +40,19 @@ export default async function QuarterDetailPage({
       closed_at?: string; assignment_id: string;
       assignment?: { id: string; year: number; type: string; company_id?: string; company_name?: string };
     }>(`/api/quarters/${quarterId}`),
-    gwJson<{ id: string; name: string; file_path: string; file_size?: number; mime_type?: string; category?: string; notes?: string; created_at: string; uploaded_by: string; uploaded_by_name?: string }[]>(
+    gwJson<{ id: string; name: string; file_path: string; file_size: number | null; mime_type: string | null; category: string; notes: string | null; created_at: string; uploaded_by: string }[]>(
       `/api/documents?quarter_id=${quarterId}`
     ),
     gwJson<{ id: string; title: string; area: string; status: string; prepared_by: string; prepared_by_name?: string; created_at: string }[]>(
       `/api/audit/working-papers?quarter_id=${quarterId}`
     ),
-    gwJson<{ id: string; title: string; severity: string; status: string; raised_by: string; raised_by_name?: string; due_date?: string; created_at: string }[]>(
+    gwJson<{ id: string; title: string; severity: string; status: string; raised_by: string; due_date: string | null; created_at: string }[]>(
       `/api/audit/findings?quarter_id=${quarterId}`
     ),
-    gwJson<{ id: string; item: string; category?: string; done: boolean; notes?: string; completed_by?: string; completed_by_name?: string; completed_at?: string; sort_order?: number }[]>(
+    gwJson<{ id: string; item: string; category: string; done: boolean; notes: string | null; completed_by: string | null; completed_at: string | null; sort_order: number }[]>(
       `/api/audit/vigilanza?quarter_id=${quarterId}`
     ),
-    gwJson<{ id: string; filename: string; period_label?: string; row_count?: number; doc_type?: string; created_at: string; uploaded_by: string }[]>(
+    gwJson<{ id: string; filename: string; period_label: string; row_count: number | null; doc_type: string; created_at: string }[]>(
       `/api/accounting/imports?quarter_id=${quarterId}`
     ),
     gwJson<{ id: string; title: string; type: string; status: string; created_at: string }[]>(
@@ -91,45 +91,54 @@ export default async function QuarterDetailPage({
       <QuarterStatusForm
         quarterId={quarterId}
         currentStatus={quarter.status}
-        notes={quarter.notes ?? null}
+        currentNotes={quarter.notes ?? ''}
         canEdit={canEdit}
       />
 
       <DocumentiSection
         quarterId={quarterId}
-        documents={documents ?? []}
+        initialDocuments={documents ?? []}
+        uploaderNames={{}}
         canUpload={canEdit}
+        currentUserId={me?.user.id ?? ""}
+        isOwnerOrRevisor={canEdit}
       />
 
       <CarteSection
         quarterId={quarterId}
-        papers={papers ?? []}
-        canCreate={canEdit}
+        assignmentId={assignmentId}
+        initialPapers={papers ?? []}
+        preparerNames={{}}
+        currentUserId={me?.user.id ?? ""}
+        canEdit={canEdit}
       />
 
       <RilieviSection
         quarterId={quarterId}
-        findings={findings ?? []}
-        canCreate={canEdit}
+        assignmentId={assignmentId}
+        initialFindings={findings ?? []}
+        raisedByNames={{}}
       />
 
       <VigilanzaSection
         quarterId={quarterId}
-        items={vigilanzaItems ?? []}
-        canEdit={canEdit}
+        initialItems={vigilanzaItems ?? []}
+        completedByNames={{}}
       />
 
       <ImportSection
         quarterId={quarterId}
-        imports={accountingImports ?? []}
         assignmentId={assignmentId}
+        initialImports={accountingImports ?? []}
+        uploaderNames={{}}
         canUpload={canEdit}
       />
 
       <VerbaliSection
         quarterId={quarterId}
-        drafts={quarterDrafts ?? []}
         assignmentId={assignmentId}
+        quarterLabel={QUARTER_LABELS[quarter.quarter] ?? ""}
+        initialDrafts={quarterDrafts ?? []}
         canCreate={canEdit}
       />
     </div>

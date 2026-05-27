@@ -14,10 +14,12 @@ export function QuarterStatusForm({
   quarterId,
   currentStatus,
   currentNotes,
+  canEdit = true,
 }: {
   quarterId: string;
   currentStatus: string;
   currentNotes: string;
+  canEdit?: boolean;
 }) {
   const [status, setStatus] = useState(currentStatus);
   const [notes, setNotes] = useState(currentNotes);
@@ -63,7 +65,8 @@ export function QuarterStatusForm({
           <select
             value={status}
             onChange={(e) => { setStatus(e.target.value); setSaved(false); }}
-            className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            disabled={!canEdit}
+            className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
             {STATUSES.map((s) => (
               <option key={s.value} value={s.value}>{s.label}</option>
@@ -82,13 +85,14 @@ export function QuarterStatusForm({
             value={notes}
             onChange={(e) => { setNotes(e.target.value); setSaved(false); }}
             rows={3}
+            disabled={!canEdit}
             placeholder="Osservazioni, criticità rilevate, attività svolte..."
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           />
         </div>
 
         <div className="flex justify-end">
-          <Button type="submit" loading={loading} disabled={!isDirty && !loading}>
+          <Button type="submit" loading={loading} disabled={!canEdit || (!isDirty && !loading)}>
             Salva
           </Button>
         </div>

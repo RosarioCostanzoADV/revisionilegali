@@ -31,7 +31,8 @@ else
   echo "⬆️   Caricamento $ROW_COUNT working papers..."
 
   psql "$AUDIT_DB_URL" <<ENDSQL
-CREATE TEMP TABLE _stg_working_papers (
+DROP TABLE IF EXISTS _stg_working_papers;
+CREATE TABLE _stg_working_papers (
   id           UUID,
   tenant_id    UUID,
   quarter_id   UUID,
@@ -78,7 +79,8 @@ else
   echo "⬆️   Caricamento $ROW_COUNT findings..."
 
   psql "$AUDIT_DB_URL" <<ENDSQL
-CREATE TEMP TABLE _stg_findings (
+DROP TABLE IF EXISTS _stg_findings;
+CREATE TABLE _stg_findings (
   id               UUID,
   tenant_id        UUID,
   quarter_id       UUID,
@@ -131,7 +133,8 @@ else
   echo "⬆️   Caricamento $ROW_COUNT voci vigilanza..."
 
   psql "$AUDIT_DB_URL" <<ENDSQL
-CREATE TEMP TABLE _stg_vigilanza_items (
+DROP TABLE IF EXISTS _stg_vigilanza_items;
+CREATE TABLE _stg_vigilanza_items (
   id           UUID,
   tenant_id    UUID,
   quarter_id   UUID,

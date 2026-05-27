@@ -71,7 +71,7 @@ const logout = async (req, res) => {
 // GET /api/auth/verify
 const verify = async (req, res) => {
     // Il middleware authenticateToken ha già validato il token → req.user è popolato
-    return res.json({ valid: true, user: req.user });
+    return res.json({ valid: true, user: req.user, payload: req.user });
 };
 
 // GET /api/auth/me
@@ -81,7 +81,51 @@ const getMe = async (req, res) => {
             attributes: { exclude: ['password_hash'] }
         });
         if (!user) return res.status(404).json({ error: 'Utente non trovato' });
-        return res.json(user);
+
+        const u = user.toJSON();
+        const profile = {
+            id: u.id,
+            email: u.email,
+            role: u.role,
+            full_name: u.full_name,
+            phone: u.phone,
+            signature_text: u.signature_text,
+            is_active: u.is_active,
+            tenant_id: u.tenant_id,
+        };
+
+        // Fetch tenant + plan info from tenant-service (best-effort)
+        let tenant = null;
+        let plan = null;
+        if (u.tenant_id) {
+            try {
+                const tenantUrl = process.env.TENANT_SERVICE_URL || 'http://tenant-service:3002';
+                const token = req.headers['authorization'];
+                const tr = await fetch(`${tenantUrl}/api/tenants/${u.tenant_id}/status`, {
+                    headers: { Authorization: token },
+                });
+                if (tr.ok) {
+                    const td = await tr.json();
+                    tenant = {
+                        id: td.id,
+                        name: td.name || null,
+                        status: td.status,
+                        onboarding_completed: td.onboarding_completed,
+                        plan_id: td.plan_id,
+                        plan_expires_at: td.plan_expires_at,
+                        referent_name: td.referent_name || null,
+                        phone: td.phone || null,
+                        vat_number: td.vat_number || null,
+                        timezone: td.timezone || 'Europe/Rome',
+                    };
+                    plan = td.plan || null;
+                }
+            } catch {
+                // Tenant service unreachable — non bloccante
+            }
+        }
+
+        return res.json({ user: { id: u.id, email: u.email }, profile, tenant, plan });
     } catch (err) {
         console.error('getMe error:', err);
         return res.status(500).json({ error: 'Errore interno del server' });

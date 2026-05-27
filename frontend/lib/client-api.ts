@@ -16,7 +16,26 @@ function getCookieValue(name: string): string | null {
 }
 
 export function getGatewayUrl(): string {
-  return process.env.NEXT_PUBLIC_GATEWAY_URL ?? "http://localhost:8080";
+  const configured = process.env.NEXT_PUBLIC_GATEWAY_URL;
+  if (configured) {
+    try {
+      const parsed = new URL(configured);
+      const cfgIsLocal = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+
+      if (typeof window === "undefined") return configured;
+
+      const appIsLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+      if (!cfgIsLocal || appIsLocal) return configured;
+    } catch {
+      return configured;
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+
+  return "http://localhost:8080";
 }
 
 export function getAuthToken(): string | null {

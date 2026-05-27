@@ -39,8 +39,8 @@ async function verifyToken(token: string): Promise<{ valid: boolean; payload?: R
       cache: "no-store",
     });
     if (!res.ok) return { valid: false };
-    const data = await res.json() as { valid?: boolean; payload?: Record<string, unknown> };
-    return { valid: data.valid === true, payload: data.payload };
+    const data = await res.json() as { valid?: boolean; payload?: Record<string, unknown>; user?: Record<string, unknown> };
+    return { valid: data.valid === true, payload: data.payload ?? data.user };
   } catch {
     return { valid: false };
   }

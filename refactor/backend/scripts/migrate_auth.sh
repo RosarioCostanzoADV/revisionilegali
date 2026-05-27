@@ -53,7 +53,7 @@ DROP TABLE IF EXISTS _stg_auth_users;
 DROP TABLE IF EXISTS _stg_user_profiles;
 
 -- Staging: auth.users
-CREATE TEMP TABLE _stg_auth_users (
+CREATE TABLE _stg_auth_users (
   id                UUID,
   email             TEXT,
   encrypted_password TEXT,
@@ -62,7 +62,7 @@ CREATE TEMP TABLE _stg_auth_users (
 );
 
 -- Staging: public.user_profiles
-CREATE TEMP TABLE _stg_user_profiles (
+CREATE TABLE _stg_user_profiles (
   id             UUID,
   tenant_id      UUID,
   role           TEXT,

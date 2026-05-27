@@ -30,7 +30,8 @@ fi
 
 echo "⬆️   Caricamento $ROW_COUNT aziende..."
 psql "$COMPANY_DB_URL" <<ENDSQL
-CREATE TEMP TABLE _stg_companies (
+DROP TABLE IF EXISTS _stg_companies;
+CREATE TABLE _stg_companies (
   id          UUID,
   tenant_id   UUID,
   name        VARCHAR(300),

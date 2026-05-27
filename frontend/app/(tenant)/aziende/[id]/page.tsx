@@ -16,9 +16,9 @@ export default async function AziendaDetailPage({
   const [me, company] = await Promise.all([
     gwJson<MeResponse>("/api/auth/me"),
     gwJson<{
-      id: string; name: string; fiscal_code?: string; vat_number?: string;
-      sector?: string; address?: string; city?: string; province?: string;
-      notes?: string; is_archived: boolean;
+      id: string; name: string; fiscal_code: string | null; vat_number: string | null;
+      sector: string | null; address: string | null; city: string | null; province: string | null;
+      notes: string | null; is_archived: boolean;
     }>(`/api/companies/${id}`),
   ]);
 

@@ -31,7 +31,8 @@ else
   echo "⬆️   Caricamento $ROW_COUNT incarichi..."
 
   psql "$ASSIGNMENT_DB_URL" <<ENDSQL
-CREATE TEMP TABLE _stg_assignments (
+DROP TABLE IF EXISTS _stg_assignments;
+CREATE TABLE _stg_assignments (
   id         UUID,
   tenant_id  UUID,
   company_id UUID,
@@ -71,7 +72,8 @@ else
   echo "⬆️   Caricamento $ROW_COUNT membri incarico..."
 
   psql "$ASSIGNMENT_DB_URL" <<ENDSQL
-CREATE TEMP TABLE _stg_assignment_members (
+DROP TABLE IF EXISTS _stg_assignment_members;
+CREATE TABLE _stg_assignment_members (
   id            UUID,
   assignment_id UUID,
   user_id       UUID,
@@ -100,7 +102,8 @@ else
   echo "⬆️   Caricamento $ROW_COUNT trimestri..."
 
   psql "$ASSIGNMENT_DB_URL" <<ENDSQL
-CREATE TEMP TABLE _stg_quarters (
+DROP TABLE IF EXISTS _stg_quarters;
+CREATE TABLE _stg_quarters (
   id            UUID,
   assignment_id UUID,
   tenant_id     UUID,

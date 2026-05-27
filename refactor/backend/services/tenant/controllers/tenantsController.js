@@ -39,8 +39,8 @@ const getTenant = async (req, res) => {
 const getTenantStatus = async (req, res) => {
     try {
         const tenant = await Tenant.findByPk(req.params.id, {
-            attributes: ['id', 'status', 'onboarding_completed', 'plan_id', 'plan_expires_at'],
-            include: [{ model: Plan, as: 'plan', attributes: ['name', 'max_assignments', 'max_users', 'vigilance_module', 'ai_drafts_module', 'advanced_import', 'ai_quota'] }]
+            attributes: ['id', 'name', 'status', 'onboarding_completed', 'plan_id', 'plan_expires_at', 'referent_name', 'phone', 'vat_number', 'timezone'],
+            include: [{ model: Plan, as: 'plan', attributes: ['id', 'name', 'max_assignments', 'max_users', 'vigilance_module', 'ai_drafts_module', 'advanced_import', 'ai_quota'] }]
         });
         if (!tenant) return res.status(404).json({ error: 'Tenant non trovato' });
         return res.json(tenant);

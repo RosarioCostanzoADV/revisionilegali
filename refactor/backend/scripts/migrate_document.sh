@@ -29,7 +29,8 @@ else
   echo "⬆️   Caricamento $ROW_COUNT documenti..."
 
   psql "$DOCUMENT_DB_URL" <<ENDSQL
-CREATE TEMP TABLE _stg_documents (
+DROP TABLE IF EXISTS _stg_documents;
+CREATE TABLE _stg_documents (
   id          UUID,
   tenant_id   UUID,
   quarter_id  UUID,
@@ -75,7 +76,8 @@ else
   echo "⬆️   Caricamento $ROW_COUNT bozze..."
 
   psql "$DOCUMENT_DB_URL" <<ENDSQL
-CREATE TEMP TABLE _stg_drafts (
+DROP TABLE IF EXISTS _stg_drafts;
+CREATE TABLE _stg_drafts (
   id            UUID,
   tenant_id     UUID,
   assignment_id UUID,

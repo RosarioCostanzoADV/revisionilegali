@@ -31,7 +31,8 @@ done
 
 echo "⬆️   Caricamento plans.csv..."
 psql "$TENANT_DB_URL" <<ENDSQL
-CREATE TEMP TABLE _stg_plans (
+DROP TABLE IF EXISTS _stg_plans;
+CREATE TABLE _stg_plans (
   id                UUID,
   name              TEXT,
   max_assignments   INT,
@@ -52,11 +53,12 @@ echo "🔄  Inserimento piani..."
 psql "$TENANT_DB_URL" <<'ENDSQL'
 INSERT INTO plans (
   id, name, max_assignments, max_users, storage_gb, ai_quota,
-  vigilance_module, ai_drafts_module, advanced_import, is_active, created_at
+  vigilance_module, ai_drafts_module, advanced_import, is_active, created_at, updated_at
 )
 SELECT
   id, name, max_assignments, max_users, storage_gb, ai_quota,
-  vigilance_module, ai_drafts_module, advanced_import, is_active, created_at
+  vigilance_module, ai_drafts_module, advanced_import, is_active, created_at,
+  COALESCE(created_at, now()) AS updated_at
 FROM _stg_plans
 ON CONFLICT (name) DO UPDATE SET
   max_assignments  = EXCLUDED.max_assignments,
@@ -71,7 +73,8 @@ ENDSQL
 
 echo "⬆️   Caricamento tenants.csv..."
 psql "$TENANT_DB_URL" <<ENDSQL
-CREATE TEMP TABLE _stg_tenants (
+DROP TABLE IF EXISTS _stg_tenants;
+CREATE TABLE _stg_tenants (
   id                    UUID,
   name                  TEXT,
   referent_name         TEXT,
