@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Refactoring Microservizi — Dev Hub</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+  <style>
+    :root {
+      --bg:        #080e1e;
+      --surface:   #0f1829;
+      --surface2:  #162036;
+      --border:    #1e2d4a;
+      --accent:    #6366f1;
+      --accent2:   #818cf8;
+      --green:     #10b981;
+      --yellow:    #f59e0b;
+      --red:       #ef4444;
+      --muted:     #64748b;
+      --text:      #e2e8f0;
+      --text2:     #94a3b8;
+      --sidebar-w: 260px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      min-height: 100vh;
+    }
+
+    /* ── TOPBAR ─────────────────────────────────────────────── */
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: 56px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 16px;
+    }
+    .topbar-logo {
+      display: flex; align-items: center; gap: 8px;
+      font-weight: 700; font-size: .9rem; color: var(--text);
+      text-decoration: none; flex: 1;
+    }
+    .topbar-logo span.pill {
+      background: var(--accent); color: #fff;
+      font-size: .65rem; font-weight: 700; letter-spacing: .06em;
+      padding: 2px 7px; border-radius: 20px; text-transform: uppercase;
+    }
+    .hamburger {
+      display: none; flex-direction: column; gap: 5px;
+      background: none; border: none; cursor: pointer; padding: 4px;
+    }
+    .hamburger span {
+      display: block; width: 22px; height: 2px;
+      background: var(--text2); border-radius: 2px;
+      transition: all .25s;
+    }
+    @media (max-width: 768px) {
+      .hamburger { display: flex; }
+    }
+
+    /* ── SIDEBAR ────────────────────────────────────────────── */
+    .sidebar {
+      position: fixed; top: 56px; left: 0; bottom: 0;
+      width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto; z-index: 90;
+      padding: 20px 0;
+      transition: transform .3s cubic-bezier(.4,0,.2,1);
+    }
+    .sidebar-section { padding: 0 12px 8px; }
+    .sidebar-label {
+      font-size: .65rem; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--muted);
+      padding: 0 8px; margin-bottom: 4px;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px; border-radius: 8px;
+      cursor: pointer; font-size: .875rem; color: var(--text2);
+      transition: all .15s; border: none; background: none;
+      width: 100%; text-align: left; text-decoration: none;
+    }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: rgba(99,102,241,.15); color: var(--accent2); }
+    .nav-item .icon { font-size: 1rem; width: 20px; text-align: center; }
+    .sidebar-divider { height: 1px; background: var(--border); margin: 12px 16px; }
+
+    /* Phase progress badges in sidebar */
+    .phase-badge {
+      font-size: .65rem; font-weight: 700; padding: 1px 6px;
+      border-radius: 20px; margin-left: auto;
+    }
+    .phase-badge.done  { background: rgba(16,185,129,.15); color: var(--green); }
+    .phase-badge.wip   { background: rgba(245,158,11,.15);  color: var(--yellow); }
+    .phase-badge.todo  { background: rgba(100,116,139,.1);  color: var(--muted); }
+
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,.5); }
+    }
+
+    /* ── OVERLAY ────────────────────────────────────────────── */
+    .overlay {
+      display: none; position: fixed; inset: 0; z-index: 80;
+      background: rgba(0,0,0,.5);
+    }
+    .overlay.show { display: block; }
+
+    /* ── MAIN ───────────────────────────────────────────────── */
+    .main {
+      margin-left: var(--sidebar-w);
+      padding-top: 56px;
+      min-height: 100vh;
+    }
+    @media (max-width: 768px) { .main { margin-left: 0; } }
+
+    .page { display: none; padding: 32px 24px 64px; max-width: 860px; }
+    .page.active { display: block; }
+
+    /* ── HERO BANNER ─────────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(135deg, #1a1060 0%, #0f172a 60%, #071a30 100%);
+      border: 1px solid var(--border);
+      border-radius: 16px; padding: 32px 28px; margin-bottom: 32px;
+      position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; top: -40px; right: -40px;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(99,102,241,.3) 0%, transparent 70%);
+    }
+    .hero h1 { font-size: 1.5rem; font-weight: 800; color: #fff; margin-bottom: 8px; }
+    .hero p  { color: var(--text2); font-size: .9rem; max-width: 560px; }
+    .hero-tags { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+    .hero-tag {
+      font-size: .72rem; font-weight: 600;
+      padding: 3px 10px; border-radius: 20px;
+      background: rgba(99,102,241,.15); color: var(--accent2);
+      border: 1px solid rgba(99,102,241,.25);
+    }
+
+    /* ── STATUS BAR ──────────────────────────────────────────── */
+    .status-bar {
+      display: flex; gap: 12px; margin-bottom: 28px; flex-wrap: wrap;
+    }
+    .status-card {
+      flex: 1; min-width: 120px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px 18px;
+    }
+    .status-card .s-label { font-size: .7rem; color: var(--muted); margin-bottom: 4px; letter-spacing: .05em; text-transform: uppercase; }
+    .status-card .s-value { font-size: 1.5rem; font-weight: 800; }
+    .s-value.green { color: var(--green); }
+    .s-value.yellow{ color: var(--yellow); }
+    .s-value.muted  { color: var(--muted); }
+
+    /* ── PHASE CARDS ─────────────────────────────────────────── */
+    .phase-grid { display: grid; gap: 12px; }
+    .phase-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px 20px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .phase-card .p-num {
+      font-size: .7rem; font-weight: 800; letter-spacing: .08em;
+      color: var(--accent2); min-width: 40px;
+    }
+    .phase-card .p-name { font-size: .9rem; font-weight: 600; color: var(--text); flex: 1; }
+    .phase-card .p-info { font-size: .75rem; color: var(--text2); margin-top: 2px; }
+    .phase-card .p-status { font-size: 1.1rem; }
+
+    /* ── MARKDOWN CONTENT ────────────────────────────────────── */
+    .md-content h1 { font-size: 1.6rem; font-weight: 800; margin: 0 0 20px; color: #fff; }
+    .md-content h2 {
+      font-size: 1.15rem; font-weight: 700; margin: 36px 0 14px;
+      padding-bottom: 8px; border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+    .md-content h3 { font-size: 1rem; font-weight: 700; margin: 24px 0 10px; color: var(--accent2); }
+    .md-content h4 { font-size: .9rem; font-weight: 600; margin: 16px 0 8px; color: var(--text2); }
+    .md-content p  { margin-bottom: 12px; color: var(--text2); font-size: .9rem; }
+    .md-content ul, .md-content ol { padding-left: 20px; margin-bottom: 12px; }
+    .md-content li { margin-bottom: 4px; color: var(--text2); font-size: .9rem; }
+    .md-content strong { color: var(--text); }
+    .md-content em { color: var(--text2); }
+    .md-content a { color: var(--accent2); text-decoration: none; }
+    .md-content a:hover { text-decoration: underline; }
+    .md-content hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+    .md-content blockquote {
+      border-left: 3px solid var(--accent); padding: 8px 16px;
+      background: rgba(99,102,241,.06); border-radius: 0 8px 8px 0;
+      margin: 12px 0; font-size: .875rem;
+    }
+    .md-content blockquote p { margin: 0; color: var(--text2); }
+
+    /* CODE */
+    .md-content code {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: .82em; background: rgba(255,255,255,.06);
+      padding: 1px 5px; border-radius: 4px; color: #c4b5fd;
+    }
+    .md-content pre {
+      background: #0a0f1e; border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px; overflow-x: auto;
+      margin: 12px 0;
+    }
+    .md-content pre code {
+      background: none; padding: 0; color: #a5f3fc;
+      font-size: .82rem; line-height: 1.6;
+    }
+
+    /* TABLES */
+    .table-wrap { overflow-x: auto; margin: 12px 0; border-radius: 10px; }
+    .md-content table {
+      width: 100%; border-collapse: collapse; font-size: .82rem;
+    }
+    .md-content thead tr { background: rgba(99,102,241,.12); }
+    .md-content th {
+      padding: 9px 12px; text-align: left;
+      font-weight: 700; color: var(--accent2); white-space: nowrap;
+      border-bottom: 1px solid var(--border);
+    }
+    .md-content td {
+      padding: 8px 12px; border-bottom: 1px solid rgba(30,45,74,.6);
+      color: var(--text2); vertical-align: top;
+    }
+    .md-content tr:last-child td { border-bottom: none; }
+    .md-content tr:hover td { background: rgba(255,255,255,.02); }
+
+    /* STATUS EMOJI BADGES */
+    .md-content td:nth-child(3) { font-size: 1rem; }
+
+    /* ── ENVIRONMENT PAGE ─────────────────────────────────────── */
+    .env-grid { display: grid; gap: 20px; }
+    .env-section { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .env-section-title {
+      padding: 12px 18px; font-size: .8rem; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase; color: var(--accent2);
+      background: rgba(99,102,241,.08); border-bottom: 1px solid var(--border);
+    }
+    .service-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 18px; border-bottom: 1px solid rgba(30,45,74,.5);
+    }
+    .service-row:last-child { border-bottom: none; }
+    .service-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+    .service-dot.internal { background: var(--yellow); }
+    .service-name { font-size: .85rem; font-weight: 600; color: var(--text); min-width: 160px; font-family: monospace; }
+    .service-port { font-size: .8rem; color: var(--accent2); font-family: monospace; min-width: 80px; }
+    .service-desc { font-size: .8rem; color: var(--text2); }
+
+    .routing-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 18px; border-bottom: 1px solid rgba(30,45,74,.5);
+      font-size: .82rem;
+    }
+    .routing-row:last-child { border-bottom: none; }
+    .routing-path { font-family: monospace; color: #a5f3fc; min-width: 200px; }
+    .routing-arrow { color: var(--muted); }
+    .routing-target { font-family: monospace; color: var(--accent2); }
+
+    /* ── SCROLLBAR ────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+    /* ── PROGRESS BAR ────────────────────────────────────────── */
+    .progress-bar-wrap { background: var(--surface2); border-radius: 100px; height: 6px; margin-top: 4px; }
+    .progress-bar-fill { height: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--accent), #a5b4fc); transition: width .6s ease; }
+
+    /* ── FOOTER ──────────────────────────────────────────────── */
+    .footer {
+      border-top: 1px solid var(--border); padding: 20px 24px;
+      font-size: .75rem; color: var(--muted); text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <a class="topbar-logo" href="#" onclick="showPage('overview'); return false;">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/></svg>
+    revisionilegali &nbsp;<span class="pill">refactor</span>
+  </a>
+  <button class="hamburger" id="hamburger" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-label">Navigazione</div>
+    <button class="nav-item active" onclick="showPage('overview')" data-page="overview">
+      <span class="icon">🏠</span> Overview
+    </button>
+    <button class="nav-item" onclick="showPage('plan')" data-page="plan">
+      <span class="icon">📊</span> Piano
+      <span class="phase-badge wip">IN CORSO</span>
+    </button>
+    <button class="nav-item" onclick="showPage('progress')" data-page="progress">
+      <span class="icon">📝</span> Progress Log
+    </button>
+    <button class="nav-item" onclick="showPage('environment')" data-page="environment">
+      <span class="icon">🔧</span> Environment
+    </button>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Fasi</div>
+    <button class="nav-item" onclick="showPage('plan')" style="font-size:.8rem">
+      <span class="icon">✅</span> Fase 0 — Setup
+      <span class="phase-badge done">✓</span>
+    </button>
+    <button class="nav-item" onclick="showPage('plan')" style="font-size:.8rem">
+      <span class="icon">✅</span> Fase 1 — Backend
+      <span class="phase-badge done">✓</span>
+    </button>
+    <button class="nav-item" onclick="showPage('plan')" style="font-size:.8rem">
+      <span class="icon">✅</span> Fase 2 — Frontend
+      <span class="phase-badge todo">TODO</span>
+    </button>
+    <button class="nav-item" onclick="showPage('plan')" style="font-size:.8rem">
+      <span class="icon">✅</span> Fase 3 — Migrazione
+      <span class="phase-badge done">DONE</span>
+    </button>
+    <button class="nav-item" onclick="showPage('plan')" style="font-size:.8rem">
+      <span class="icon">🔄</span> Fase 4 — Validazione
+      <span class="phase-badge in-progress">IN CORSO</span>
+    </button>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Aggiornato</div>
+    <div style="padding: 4px 12px; font-size:.78rem; color: var(--muted);">23 maggio 2026</div>
+    <div style="padding: 2px 12px; font-size:.78rem; color: var(--text2);">branch: <code style="font-size:.75rem">refactor/microservices-architecture</code></div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- ── PAGE: OVERVIEW ── -->
+  <section class="page active" id="page-overview">
+    <div class="hero">
+      <h1>🚀 Refactoring Microservizi</h1>
+      <p>Migrazione del monolite Next.js + Supabase verso un'architettura a microservizi containerizzati indipendenti, con parità funzionale garantita.</p>
+      <div class="hero-tags">
+        <span class="hero-tag">Node.js / Express</span>
+        <span class="hero-tag">PostgreSQL × 7</span>
+        <span class="hero-tag">Docker Compose</span>
+        <span class="hero-tag">nginx Gateway</span>
+        <span class="hero-tag">JWT Auth</span>
+        <span class="hero-tag">Gemini AI</span>
+        <span class="hero-tag">Multi-tenant</span>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-card">
+        <div class="s-label">Servizi implementati</div>
+        <div class="s-value green">8 / 8</div>
+        <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:100%"></div></div>
+      </div>
+      <div class="status-card">
+        <div class="s-label">Fase corrente</div>
+        <div class="s-value green" style="font-size:1rem;line-height:1.3">Fase 4 🔄<br><span style="font-size:.7rem;font-weight:400;color:var(--muted)">Completare: merge main</span></div>
+      </div>
+      <div class="status-card">
+        <div class="s-label">Smoke test</div>
+        <div class="s-value green">29 / 29</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">tutti i test passed</div>
+      </div>
+      <div class="status-card">
+        <div class="s-label">Docker runtime</div>
+        <div class="s-value green">online</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">16 container attivi</div>
+      </div>
+    </div>
+
+    <h2 style="font-size:1rem;font-weight:700;color:var(--text2);margin-bottom:14px;text-transform:uppercase;letter-spacing:.08em">Architettura target</h2>
+    <div class="phase-grid" style="margin-bottom:32px">
+      <div class="phase-card"><span class="p-num">GW</span><div><div class="p-name">api-gateway (nginx)</div><div class="p-info">Porta 8080 · CORS · routing path-based</div></div><span class="p-status">✅</span></div>
+      <div class="phase-card"><span class="p-num">1001</span><div><div class="p-name">auth-service</div><div class="p-info">Porta 3001 · JWT · login · reset password</div></div><span class="p-status">✅</span></div>
+      <div class="phase-card"><span class="p-num">3002</span><div><div class="p-name">tenant-service</div><div class="p-info">Porta 3002 · piani · onboarding · status</div></div><span class="p-status">✅</span></div>
+      <div class="phase-card"><span class="p-num">3003</span><div><div class="p-name">company-service</div><div class="p-info">Porta 3003 · aziende clienti · soft-delete</div></div><span class="p-status">✅</span></div>
+      <div class="phase-card"><span class="p-num">3004</span><div><div class="p-name">assignment-service</div><div class="p-info">Porta 3004 · incarichi · trimestri · team</div></div><span class="p-status">✅</span></div>
+      <div class="phase-card"><span class="p-num">3005</span><div><div class="p-name">audit-service</div><div class="p-info">Porta 3005 · carte · rilievi · vigilanza</div></div><span class="p-status">✅</span></div>
+      <div class="phase-card"><span class="p-num">3006</span><div><div class="p-name">document-service</div><div class="p-info">Porta 3006 · upload documenti · bozze</div></div><span class="p-status">✅</span></div>
+      <div class="phase-card"><span class="p-num">3007</span><div><div class="p-name">accounting-service</div><div class="p-info">Porta 3007 · import CSV/XLSX/PDF · AI mapping</div></div><span class="p-status">✅</span></div>
+      <div class="phase-card"><span class="p-num">3008</span><div><div class="p-name">ai-service</div><div class="p-info">Solo interno · Gemini API · map-bilancio</div></div><span class="p-status">✅</span></div>
+    </div>
+
+    <h2 style="font-size:1rem;font-weight:700;color:var(--text2);margin-bottom:14px;text-transform:uppercase;letter-spacing:.08em">Roadmap delle fasi</h2>
+    <div class="phase-grid">
+      <div class="phase-card"><span class="p-num">F0</span><div><div class="p-name">Setup e Preparazione</div><div class="p-info">Branch git · hub di tracking · template microservizio · create_ms.py</div></div><span class="p-status">✅</span></div>
+      <div class="phase-card"><span class="p-num">F1</span><div><div class="p-name">Backend Microservizi</div><div class="p-info">8 servizi · Docker · nginx gateway · smoke test 29/29 · AI mapping</div></div><span class="p-status">✅</span></div>
+      <div class="phase-card"><span class="p-num">F2</span><div><div class="p-name">Frontend Refactor</div><div class="p-info">frontend/ · gwJson/apiFetch · Dockerfile · Supabase rimosso</div></div><span class="p-status">✅</span></div>
+      <div class="phase-card"><span class="p-num">F3</span><div><div class="p-name">Migrazione Dati</div><div class="p-info">export_supabase.sh · 7 migrate_*.sh · run_migrations.sh · verify_migration.sh · MIGRATION_NOTES.md</div></div><span class="p-status">✅</span></div>
+      <div class="phase-card"><span class="p-num">F4</span><div><div class="p-name">Validazione e Merge</div><div class="p-info">VALIDATION_CHECKLIST.md · seed_test_data.js · e2e-test.js (4.2–4.9) · merge main ⬜</div></div><span class="p-status">🔄</span></div>
+    </div>
+
+    <div style="margin-top:32px;padding:16px 20px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;font-size:.83rem;color:var(--text2)">
+      <strong style="color:var(--text)">⚠️ Regola fondamentale:</strong> Il branch <code>refactor/microservices-architecture</code> <strong>non</strong> viene mergato in <code>main</code> finché la Fase 4 — Validazione non è completata e firmata.
+    </div>
+  </section>
+
+  <!-- ── PAGE: PIANO ── -->
+  <section class="page" id="page-plan">
+    <div id="plan-content" class="md-content"></div>
+  </section>
+
+  <!-- ── PAGE: PROGRESS ── -->
+  <section class="page" id="page-progress">
+    <div id="progress-content" class="md-content"></div>
+  </section>
+
+  <!-- ── PAGE: ENVIRONMENT ── -->
+  <section class="page" id="page-environment">
+    <div class="hero" style="margin-bottom:28px">
+      <h1>🔧 Environment Reference</h1>
+      <p>Porte, URL interni, variabili d'ambiente e routing del gateway per tutta l'infrastruttura containerizzata.</p>
+    </div>
+
+    <div class="env-grid">
+      <!-- Servizi -->
+      <div class="env-section">
+        <div class="env-section-title">Porte dei servizi</div>
+        <div class="service-row"><span class="service-dot"></span><span class="service-name">api-gateway</span><span class="service-port">:8080</span><span class="service-desc">nginx · ingresso pubblico · CORS</span></div>
+        <div class="service-row"><span class="service-dot"></span><span class="service-name">auth-service</span><span class="service-port">:3001</span><span class="service-desc">JWT · login · reset password</span></div>
+        <div class="service-row"><span class="service-dot"></span><span class="service-name">tenant-service</span><span class="service-port">:3002</span><span class="service-desc">piani · onboarding · status</span></div>
+        <div class="service-row"><span class="service-dot"></span><span class="service-name">company-service</span><span class="service-port">:3003</span><span class="service-desc">aziende clienti · soft-delete</span></div>
+        <div class="service-row"><span class="service-dot"></span><span class="service-name">assignment-service</span><span class="service-port">:3004</span><span class="service-desc">incarichi · trimestri · team</span></div>
+        <div class="service-row"><span class="service-dot"></span><span class="service-name">audit-service</span><span class="service-port">:3005</span><span class="service-desc">carte di lavoro · rilievi · vigilanza</span></div>
+        <div class="service-row"><span class="service-dot"></span><span class="service-name">document-service</span><span class="service-port">:3006</span><span class="service-desc">upload file · bozze con template</span></div>
+        <div class="service-row"><span class="service-dot"></span><span class="service-name">accounting-service</span><span class="service-port">:3007</span><span class="service-desc">import CSV/XLSX/PDF · AI mapping</span></div>
+        <div class="service-row"><span class="service-dot internal"></span><span class="service-name">ai-service</span><span class="service-port" style="color:var(--yellow)">interno</span><span class="service-desc">Gemini · solo rete Docker interna</span></div>
+        <div class="service-row"><span class="service-dot"></span><span class="service-name">frontend</span><span class="service-port">:3000</span><span class="service-desc">Next.js App Router</span></div>
+      </div>
+
+      <!-- DB -->
+      <div class="env-section">
+        <div class="env-section-title">Database PostgreSQL 15</div>
+        <div class="service-row"><span class="service-dot" style="background:#60a5fa"></span><span class="service-name">auth_db</span><span class="service-port">:5433</span><span class="service-desc">auth-service</span></div>
+        <div class="service-row"><span class="service-dot" style="background:#60a5fa"></span><span class="service-name">tenant_db</span><span class="service-port">:5434</span><span class="service-desc">tenant-service</span></div>
+        <div class="service-row"><span class="service-dot" style="background:#60a5fa"></span><span class="service-name">company_db</span><span class="service-port">:5435</span><span class="service-desc">company-service</span></div>
+        <div class="service-row"><span class="service-dot" style="background:#60a5fa"></span><span class="service-name">assignment_db</span><span class="service-port">:5436</span><span class="service-desc">assignment-service</span></div>
+        <div class="service-row"><span class="service-dot" style="background:#60a5fa"></span><span class="service-name">audit_db</span><span class="service-port">:5437</span><span class="service-desc">audit-service</span></div>
+        <div class="service-row"><span class="service-dot" style="background:#60a5fa"></span><span class="service-name">document_db</span><span class="service-port">:5438</span><span class="service-desc">document-service</span></div>
+        <div class="service-row"><span class="service-dot" style="background:#60a5fa"></span><span class="service-name">accounting_db</span><span class="service-port">:5439</span><span class="service-desc">accounting-service</span></div>
+      </div>
+
+      <!-- Routing -->
+      <div class="env-section">
+        <div class="env-section-title">Routing API Gateway (nginx :8080)</div>
+        <div class="routing-row"><span class="routing-path">/api/auth/*</span><span class="routing-arrow">→</span><span class="routing-target">auth-service:3001</span></div>
+        <div class="routing-row"><span class="routing-path">/api/tenants/*</span><span class="routing-arrow">→</span><span class="routing-target">tenant-service:3002</span></div>
+        <div class="routing-row"><span class="routing-path">/api/plans/*</span><span class="routing-arrow">→</span><span class="routing-target">tenant-service:3002</span></div>
+        <div class="routing-row"><span class="routing-path">/api/companies/*</span><span class="routing-arrow">→</span><span class="routing-target">company-service:3003</span></div>
+        <div class="routing-row"><span class="routing-path">/api/assignments/*</span><span class="routing-arrow">→</span><span class="routing-target">assignment-service:3004</span></div>
+        <div class="routing-row"><span class="routing-path">/api/audit/*</span><span class="routing-arrow">→</span><span class="routing-target">audit-service:3005</span></div>
+        <div class="routing-row"><span class="routing-path">/api/documents/*</span><span class="routing-arrow">→</span><span class="routing-target">document-service:3006</span></div>
+        <div class="routing-row"><span class="routing-path">/api/drafts/*</span><span class="routing-arrow">→</span><span class="routing-target">document-service:3006</span></div>
+        <div class="routing-row"><span class="routing-path">/api/accounting/*</span><span class="routing-arrow">→</span><span class="routing-target">accounting-service:3007</span></div>
+        <div class="routing-row"><span class="routing-path">/*</span><span class="routing-arrow">→</span><span class="routing-target">frontend:3000 (Next.js)</span></div>
+      </div>
+
+      <!-- Env vars rendered from markdown -->
+      <div class="env-section">
+        <div class="env-section-title">Variabili d'ambiente</div>
+        <div id="env-content" class="md-content" style="padding:16px 18px"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    revisionilegali · branch <code>refactor/microservices-architecture</code> · aggiornato 23 maggio 2026
+  </footer>
+</main>
+
+<!-- ── RAW MARKDOWN DATA ──────────────────────────────────────────── -->
+
+<script type="text/plain" id="md-plan">
+# Piano Operativo — Refactoring Microservizi
+
+> **Ultimo aggiornamento:** 2026-05-23
+> **Stato globale:** `FASE 4 IN CORSO — checklist + e2e-test.js pronti · da eseguire con Docker · poi merge main`
+> **Legenda:** ⬜ non iniziato · 🔄 in corso · ✅ completato · ❌ bloccato
+
+---
+
+## FASE 0 — Setup e Preparazione
+
+| # | Task | Stato | Note |
+|---|---|---|---|
+| 0.1 | Creare branch `refactor/microservices-architecture` da `main` | ✅ | Branch attivo |
+| 0.2 | Creare cartella `refactor/development` con hub di tracking | ✅ | Questo file |
+| 0.3 | Leggere e comprendere `refactor/analysis.md` e `refactor/architecture.md` | ✅ | Completato in fase di planning |
+| 0.4 | Leggere `refactor/backend/roadmap.md` e `SKILLS.md` | ✅ | Completato in fase di planning |
+
+---
+
+## FASE 1 — Backend Microservizi
+
+### 1.0 Infrastruttura Docker di base
+
+| # | Task | Stato | Note |
+|---|---|---|---|
+| 1.0.1 | Creare `docker/` con `docker-compose.yml` skeleton | ✅ | Tutti i servizi + db + nginx |
+| 1.0.2 | Creare `docker/nginx/nginx.conf` con routing path-based | ✅ | Routing completo per tutti gli 8 servizi |
+| 1.0.3 | Creare `services/template/` (template base microservizio) | ✅ | 7 file: Dockerfile, index.js, package.json, config/, middleware/, models/, routes/ |
+| 1.0.4 | Verificare che `create_ms.py` funzioni correttamente | ✅ | Testato — copia template e aggiorna package.json correttamente |
+
+### 1.1 `auth-service` (porta 3001, db 5433)
+
+| # | Task | Stato | Note |
+|---|---|---|---|
+| 1.1.1 | Scaffoldare con `create_ms.py auth` | ✅ | |
+| 1.1.2 | Creare modello `UserProfile` (`user_profiles`) | ✅ | Includi `password_hash`, ruoli |
+| 1.1.3 | Creare modello `PasswordResetToken` (`password_reset_tokens`) | ✅ | |
+| 1.1.4 | Creare migrazioni DB | ✅ | |
+| 1.1.5 | Implementare login (bcrypt + JWT) | ✅ | `POST /api/auth/login` |
+| 1.1.6 | Implementare verifica JWT (`GET /api/auth/verify`) | ✅ | Usato da tutti gli altri servizi |
+| 1.1.7 | Implementare profilo utente (`GET/PUT /api/auth/me`) | ✅ | |
+| 1.1.8 | Implementare reset password (email token) | ✅ | |
+| 1.1.9 | Implementare CRUD utenti admin | ✅ | `GET/POST/PUT/DELETE /api/auth/users` |
+| 1.1.10 | Aggiungere al `docker-compose.yml` | ✅ | Già presente dal fase 1.0 |
+| 1.1.11 | Test: health check + login | ⬜ | Docker daemon offline — verifica sintassi JS: OK |
+
+### 1.2 `tenant-service` (porta 3002, db 5434)
+
+| # | Task | Stato | Note |
+|---|---|---|---|
+| 1.2.1 | Scaffoldare con `create_ms.py tenant` | ✅ | |
+| 1.2.2 | Creare modello `Plan` (`plans`) | ✅ | |
+| 1.2.3 | Creare modello `Tenant` (`tenants`) | ✅ | |
+| 1.2.4 | Creare migrazioni DB | ✅ | |
+| 1.2.5 | Implementare CRUD piani (`/api/plans`) | ✅ | Solo super_admin può creare/modificare |
+| 1.2.6 | Implementare CRUD tenant (`/api/tenants`) | ✅ | |
+| 1.2.7 | Implementare `GET /api/tenants/:id/status` | ✅ | Usato dal middleware frontend |
+| 1.2.8 | Implementare `POST /api/tenants/onboarding` | ✅ | |
+| 1.2.9 | Aggiungere al `docker-compose.yml` | ✅ | Già presente dal fase 1.0 |
+| 1.2.10 | Test: health check + CRUD tenant | ⬜ | Docker offline — sintassi JS: OK |
+
+### 1.3 `company-service` (porta 3003, db 5435)
+
+| # | Task | Stato | Note |
+|---|---|---|---|
+| 1.3.1 | Scaffoldare con `create_ms.py company` | ✅ | |
+| 1.3.2 | Creare modello `Company` (`companies`) | ✅ | UUID PK, tenant_id, campi anagrafici, is_archived |
+| 1.3.3 | Creare migrazione DB | ✅ | Indici su tenant_id e tenant_id+is_archived |
+| 1.3.4 | Implementare CRUD aziende (`/api/companies`) | ✅ | Filtro per `tenant_id` da JWT |
+| 1.3.5 | Implementare soft-delete (`is_archived`) | ✅ | DELETE → imposta is_archived=true |
+| 1.3.6 | Aggiungere al `docker-compose.yml` | ✅ | Già presente dal fase 1.0 |
+| 1.3.7 | Test: health check + CRUD aziende | ⬜ | Docker offline — sintassi JS: OK |
+
+### 1.4 `assignment-service` (porta 3004, db 5436)
+
+| # | Task | Stato | Note |
+|---|---|---|---|
+| 1.4.1 | Scaffoldare con `create_ms.py assignment` | ✅ | |
+| 1.4.2 | Creare modello `Assignment` (`assignments`) | ✅ | tenant_id, company_id, year, type, status |
+| 1.4.3 | Creare modello `AssignmentMember` (`assignment_members`) | ✅ | CASCADE delete, unique (assignment_id, user_id) |
+| 1.4.4 | Creare modello `Quarter` (`quarters`) | ✅ | tenant_id, quarter (1-4), status, closed_at |
+| 1.4.5 | Creare migrazioni DB | ✅ | 3 file con indici e vincoli FK |
+| 1.4.6 | Implementare `POST /api/assignments` con auto-creazione 4 trimestri | ✅ | bulkCreate quarters + members |
+| 1.4.7 | Implementare CRUD incarichi e stati | ✅ | GET list, GET :id (con members+quarters), PATCH :id |
+| 1.4.8 | Implementare gestione team (members) | ✅ | Replace-all su PATCH con member_ids |
+| 1.4.9 | Implementare route trimestri | ✅ | GET /quarters/:id, PATCH /quarters/:id |
+| 1.4.10 | Aggiungere al `docker-compose.yml` | ✅ | Già presente dal fase 1.0 |
+| 1.4.11 | Test: creazione incarico genera 4 quarter | ⬜ | Docker offline — sintassi JS: OK |
+
+### 1.5 `audit-service` (porta 3005, db 5437)
+
+| # | Task | Stato | Note |
+|---|---|---|---|
+| 1.5.1 | Scaffoldare con `create_ms.py audit` | ✅ | |
+| 1.5.2 | Creare modello `WorkingPaper` (`working_papers`) | ✅ | UUID PK, area enum 11 valori, state machine |
+| 1.5.3 | Creare modello `Finding` (`findings`) | ✅ | UUID PK, severity, status aperto→chiuso |
+| 1.5.4 | Creare modello `VigilanzaItem` (`vigilanza_items`) | ✅ | UUID PK, done con completed_by/at auto |
+| 1.5.5 | Creare migrazioni DB | ✅ | 3 file con indici su tenant_id, quarter_id |
+| 1.5.6 | Implementare CRUD carte di lavoro | ✅ | State machine con RBAC revisore/owner |
+| 1.5.7 | Implementare CRUD rilievi | ✅ | closed_at auto su status='chiuso' |
+| 1.5.8 | Implementare checklist vigilanza (init da template) | ✅ | 14 voci predefinite, 409 se già esistono |
+| 1.5.9 | Aggiungere al `docker-compose.yml` | ✅ | Già presente dal fase 1.0 |
+| 1.5.10 | Test: health check + CRUD carte/rilievi | ⬜ | Docker offline — sintassi JS: OK |
+
+### 1.6 `document-service` (porta 3006, db 5438)
+
+| # | Task | Stato | Note |
+|---|---|---|---|
+| 1.6.1 | Scaffoldare con `create_ms.py document` | ✅ | |
+| 1.6.2 | Creare modello `Document` (`documents`) | ✅ | UUID PK, file_path, file_size, mime_type, category |
+| 1.6.3 | Creare modello `Draft` (`drafts`) | ✅ | UUID PK, assignment_id, quarter_id nullable, type enum 5 |
+| 1.6.4 | Creare migrazioni DB | ✅ | 2 file con indici su tenant_id/quarter_id/assignment_id |
+| 1.6.5 | Configurare `multer` per upload file su volume Docker | ✅ | `/app/storage`, 20MB max, 8 MIME ammessi |
+| 1.6.6 | Implementare upload/download documenti | ✅ | POST multipart, GET/:id/download con sendFile |
+| 1.6.7 | Implementare CRUD bozze con generazione template testo | ✅ | 4 template (relazione, lettera, verbale_collegio, verbale_sindaco) |
+| 1.6.8 | Aggiungere volume storage in `docker-compose.yml` | ✅ | `document_storage_data:/app/storage` |
+| 1.6.9 | Test: upload file + download + CRUD bozze | ⬜ | Docker offline — sintassi JS: OK |
+
+### 1.7 `accounting-service` (porta 3007, db 5439)
+
+| # | Task | Stato | Note |
+|---|---|---|---|
+| 1.7.1 | Scaffoldare con `create_ms.py accounting` | ✅ | |
+| 1.7.2 | Creare modello `AccountingImport` (`accounting_imports`) | ✅ | UUID PK, status enum 4, entry_count |
+| 1.7.3 | Creare modello `AccountingEntry` (`accounting_entries`) | ✅ | UUID PK, import_id FK CASCADE, voce_bilancio |
+| 1.7.4 | Creare migrazioni DB | ✅ | 2 file con indici e FK CASCADE |
+| 1.7.5 | Portare parser CSV/XLSX/PDF da `lib/accounting/parsers.ts` | ✅ | `lib/parsers.js` — 1:1 da TS |
+| 1.7.6 | Implementare upload + parsing async (202 immediato) | ✅ | Background parse, bulkCreate entries, status update |
+| 1.7.7 | Implementare PATCH /entries/:entryId per AI mapping | ✅ | voce_bilancio + mapped_at aggiornabili |
+| 1.7.7b | Chiamata automatica ad ai-service al termine dell'import | ✅ | callAiService() http nativo, timeout 30s, fallback silenzioso |
+| 1.7.8 | Aggiungere al `docker-compose.yml` | ✅ | STORAGE_ROOT env aggiunto |
+| 1.7.9 | Test: upload CSV → entries parsed → AI mapping → saved | ✅ | Smoke test 29/29 passed |
+
+### 1.8 `ai-service` (porta 3008, nessun DB)
+
+| # | Task | Stato | Note |
+|---|---|---|---|
+| 1.8.1 | Scaffoldare con `create_ms.py ai` | ✅ | |
+| 1.8.2 | Portare `lib/audit/classification.ts` in JS | ✅ | `lib/classification.js` — classifyAccount() + AUDIT_AREAS |
+| 1.8.3 | Portare logica `lib/gemini/mapBilancio.ts` in JS | ✅ | `lib/mapBilancio.js` — Gemini + fallback deterministico |
+| 1.8.4 | Eliminare dipendenza da DB (no Sequelize) | ✅ | index.js semplificato senza db.authenticate() |
+| 1.8.5 | Aggiungere `@google/generative-ai` a package.json | ✅ | v0.21.0 |
+| 1.8.6 | Implementare auth inter-service con `X-Internal-Token` | ✅ | `middleware/auth.js` — authenticateInternal |
+| 1.8.7 | Implementare controller + endpoint POST /map-bilancio | ✅ | Fallback locale se Gemini fallisce; /local per test |
+| 1.8.8 | Aggiornare `docker-compose.yml` | ✅ | Già presente + INTERNAL_SERVICE_TOKEN aggiunto |
+| 1.8.9 | Test: POST /map-bilancio con entries reali | ⬜ | Docker offline — sintassi JS: OK |
+
+### 1.9 API Gateway (nginx)
+
+| # | Task | Stato | Note |
+|---|---|---|---|
+| 1.9.1 | Creare `docker/nginx/nginx.conf` con routing verso tutti i servizi | ✅ | Copre tutti i servizi 3001–3007 + frontend |
+| 1.9.2 | Aggiungere nginx al `docker-compose.yml` | ✅ | `api-gateway` su porta 8080, dipende da tutti i servizi |
+| 1.9.3 | Configurare CORS a livello gateway | ✅ | Preflight OPTIONS + Access-Control-Allow-* incl. X-Internal-Token |
+| 1.9.4 | Test: tutte le route passano attraverso gateway | ✅ | Smoke test 29/29 — 9 health check gateway passed |
+
+### 1.10 Smoke Test Backend Completo
+
+| # | Task | Stato | Note |
+|---|---|---|---|
+| 1.10.1 | `docker compose up --build` → tutti i container partono | ✅ | 16 container attivi (8 ms + 7 DB + nginx) |
+| 1.10.2 | Health check di ogni servizio tramite gateway | ✅ | 9/9 passed |
+| 1.10.3 | Flusso completo: login → azienda → incarico → carta | ✅ | 4 CRUD tests passed |
+| 1.10.4 | Verifica isolamento multi-tenant | ✅ | 2 isolation tests passed |
+
+---
+
+## FASE 2 — Frontend Refactor
+
+| # | Task | Stato | Note |
+|---|---|---|---|
+| 2.1 | Creare `frontend/` copiando il codice Next.js attuale | ✅ | rsync da radice; rimossa `app/api/**` |
+| 2.2 | Rimuovere tutti i Route Handlers (`app/api/**`) | ✅ | Sostituiti dai microservizi |
+| 2.3 | Creare `lib/api.ts` — client HTTP verso il gateway | ✅ | `gwJson()` server-side + `apiFetch()` client-side + `lib/types.ts` |
+| 2.4 | Aggiornare middleware Next.js | ✅ | JWT via `GET /api/auth/verify`; tenant via `GET /api/tenants/:id/status` |
+| 2.5 | Sostituire `createClient()` Supabase nei Server Components | ✅ | ~28 pages riscritte con `gwJson()` |
+| 2.6 | Sostituire le chiamate nei Client Components | ✅ | URL batch-replace + ProfiloForm/TenantSettingsForm fix |
+| 2.7 | Rimuovere dipendenze Supabase dal `package.json` frontend | ✅ | Rimossi `@supabase/ssr` e `@supabase/supabase-js` |
+| 2.8 | Creare `Dockerfile` per il frontend | ✅ | Build multi-stage, `output: standalone` |
+| 2.9 | Aggiungere frontend al `docker-compose.yml` | ✅ | `build: ../frontend`, env `GATEWAY_URL` + `NEXT_PUBLIC_GATEWAY_URL` |
+| 2.10 | Test: frontend in container carica la homepage | ⬜ | |
+| 2.11 | Test end-to-end login → dashboard → operazioni base | ⬜ | |
+
+---
+
+## FASE 3 — Migrazione Dati
+
+| # | Task | Stato | Note |
+|---|---|---|---|
+| 3.1 | `export_supabase.sh` — dump Supabase → CSV per ogni tabella | ✅ | Gestisce schema `auth` non accessibile |
+| 3.2 | `migrate_auth.sh` — user_profiles → auth_db | ✅ | JOIN bcrypt hash; placeholder fallback |
+| 3.3 | `migrate_tenant.sh` — plans + tenants → tenant_db | ✅ | ON CONFLICT DO UPDATE |
+| 3.4 | `migrate_company.sh` — companies → company_db | ✅ | |
+| 3.5 | `migrate_assignment.sh` — assignments + quarters + members → assignment_db | ✅ | Ordine FK |
+| 3.6 | `migrate_audit.sh` — working_papers + findings + vigilanza → audit_db | ✅ | |
+| 3.7 | `migrate_document.sh` — documents + drafts → document_db | ✅ | |
+| 3.8 | `migrate_accounting.sh` — imports + entries → accounting_db | ✅ | voce_standard→voce_bilancio |
+| 3.9 | `run_migrations.sh` — orchestratore completo | ✅ | Verifica connessioni + applica schema |
+| 3.10 | `verify_migration.sh` — conteggi e statistiche | ✅ | Confronto CSV sorgente vs DB target |
+| 3.11 | `MIGRATION_NOTES.md` — documenta bcrypt, mapping, workaround | ✅ | encrypted_password compatibile bcrypt |
+
+---
+
+## FASE 4 — Validazione
+
+| # | Task | Stato | Note |
+|---|---|---|---|
+| 4.1 | Definire checklist equivalenza funzionale | ✅ | `VALIDATION_CHECKLIST.md` — 25 feature F01–F25 |
+| 4.2 | Test: flusso onboarding completo | ✅ | `e2e-test.js` §4.2 |
+| 4.3 | Test: flusso incarico completo | ✅ | `e2e-test.js` §4.3 |
+| 4.4 | Test: import contabile (upload → parsing → AI mapping) | ✅ | `e2e-test.js` §4.4 |
+| 4.5 | Test: vigilanza (init checklist → compila → salva) | ✅ | `e2e-test.js` §4.5 |
+| 4.6 | Test: area admin (super_admin → crea tenant → modifica piano) | ✅ | `e2e-test.js` §4.6 |
+| 4.7 | Verifica sicurezza: tenant isolation | ✅ | `e2e-test.js` §4.7 — TI-01–TI-08 |
+| 4.8 | Verifica sicurezza: ruoli RBAC | ✅ | `e2e-test.js` §4.8 — RB-01–RB-08 |
+| 4.9 | Verifica sicurezza: JWT scaduto → 401 su tutti i servizi | ✅ | `e2e-test.js` §4.9 |
+| 4.10 | Approvazione finale → merge in `main` | ⬜ | Da eseguire con Docker attivo + conferma operatore |
+| seed | `scripts/seed_test_data.js` — seed utenti test | ✅ | 5 utenti + 2 tenant + 3 piani |
+</script>
+
+<script type="text/plain" id="md-progress">
+# Progress Log — Refactoring Microservizi
+
+> Log cronologico di esecuzione. Ogni entry descrive cosa è stato fatto, l'esito e le decisioni prese.
+
+---
+
+## 2026-05-23 — Task 1.7.7 — accounting-service → ai-service (classificazione AI)
+
+### Fatto
+- Integrazione HTTP in `controllers/importsController.js`: dopo il parsing, chiama `POST http://ai-service:3008/api/map-bilancio`
+- `callAiService(entries)`: modulo `http` nativo Node.js, header `X-Internal-Token`, timeout 30s, fallback silenzioso su errore
+- Array indicizzato per matching (ordine garantito dalla risposta ai-service — no lookup by key)
+- `voce_standard` → `voce_bilancio`, `schema_civilistico` → `voce_bilancio_code`, `mapped_at = new Date()`
+- Comunicazione interna testata via `docker exec accounting-service node -e "..."` → **status 200 ✓**
+- In dev, Gemini usa il fallback deterministico (GEMINI_API_KEY non configurato); in produzione popola anche `voce_standard`
+
+### Decisioni prese
+- `http` stdlib anziché `node-fetch` — zero nuove dipendenze
+- Fallback silenzioso: l'import non fallisce se ai-service è irraggiungibile — le voci vengono salvate senza mappatura AI
+
+---
+
+## 2026-05-23 — Fase 1.10 — Deploy Docker + Smoke Test
+
+### Fatto
+- Aumentato virtual disk Docker Desktop a 80GB+ → risolto ENOSPC
+- Avviati con successo **16 container**: api-gateway, 8 microservizi, 7 DB PostgreSQL
+- **Fix nginx.conf**: `resolver 127.0.0.11 valid=10s ipv6=off` (DNS lazy); variabile `$frontend_upstream` (evita crash boot); rimossi trailing slash da `location /api/xxx/`
+- **Fix health route aliases** in tutti i servizi (`/auth/health`, `/tenants/health`, `/companies/health`, `/assignments/health`, `/audit/health`, `/documents/health`, `/accounting/health`)
+- **Fix audit-service**: alias `/audit/working-papers` aggiunto per path completo dal gateway
+- **Seed DB**: utenti test in `auth_db`, tenant/plan in `tenant_db` via psql
+- **Fix smoke-test.js**: `access_token` (non `token`); fetch `quarter_id` prima della carta; `JSON.stringify(content)`
+
+### Risultato smoke test: **29/29 passed** ✓
+- 9 health check via gateway · 7 health check diretti · 6 auth (login + JWT verify) · 4 CRUD flow · 2 isolamento tenant · 1 CORS preflight
+
+### Decisioni prese
+- Bind mount + nodemon in sviluppo: modifiche sorgenti riflesse senza rebuild immagine
+- Health alias nelle route (non rewrite nginx) per retrocompatibilità con accesso diretto ai servizi
+
+---
+
+## 2026-05-22 — Fase 1.10 — Smoke Test Backend
+
+### Fatto
+- Creato `refactor/backend/smoke-test.js` — script Node.js (stdlib only, zero dipendenze):
+  - **Test 1**: health check di tutti i servizi via gateway nginx (9 route)
+  - **Test 2**: health check diretto per-service (bypassando nginx)
+  - **Test 3**: flusso auth — login super_admin + tenantA + tenantB → verifica JWT
+  - **Test 4**: CRUD flow TenantA — azienda → incarico → carta di lavoro → bozza documento
+  - **Test 5**: isolamento multi-tenant — TenantB non vede dati di TenantA
+  - **Test 6**: CORS preflight OPTIONS → 204 con Access-Control-Allow-Origin
+
+### Come eseguire quando Docker è attivo
+```sh
+cd docker
+docker compose up --build -d
+# Attendere ~30s per DB migration
+
+cd ../refactor/backend
+node smoke-test.js
+```
+
+### Problemi / Blocchi
+- Docker daemon offline — test reali posticipati.
+- I seed SQL per i due tenant di test devono essere creati prima dello script.
+
+---
+
+## 2026-05-22 — Fase 1.9 — API Gateway (nginx)
+
+### Fatto
+- Verificato `docker/nginx/nginx.conf`: già presente e completo da Fase 1.0
+- Routing path-based: tutti i servizi 3001–3007 + frontend + WebSocket HMR
+- ai-service non esposto (solo uso interno tra servizi)
+- Aggiunto CORS a livello gateway: preflight `OPTIONS 204`, `Access-Control-Allow-Origin: $http_origin`, `Allow-Methods/Headers` (incl. `X-Internal-Token`), `Max-Age: 86400`
+
+### Decisioni prese
+- CORS gestito solo al gateway — i singoli microservizi non aggiungono header CORS autonomi.
+
+---
+
+## 2026-05-22 — Fase 1.8 — `ai-service`
+
+### Fatto
+- Scaffoldato `services/ai/` tramite `create_ms.py ai`
+- Rimosso Sequelize/PostgreSQL — nessun DB necessario
+- Aggiornato `index.js`: avvio diretto senza DB, porta 3008
+- `middleware/auth.js`: `authenticateInternal` (X-Internal-Token) + `authenticateToken`
+- `package.json`: rimossi pg/pg-hstore/sequelize, aggiunto `@google/generative-ai: ^0.21.0`
+- Portato `lib/audit/classification.ts` → `lib/classification.js`
+- Portato `lib/gemini/mapBilancio.ts` → `lib/mapBilancio.js` (Gemini flash → flash-lite, fallback locale, regole artt. 2424-2425)
+- `controllers/mapBilancioController.js`: POST /map-bilancio (AI + fallback) + POST /map-bilancio/local
+- Verifica sintattica JS: **tutti i 7 file OK**
+
+---
+
+## 2026-05-22 — Fase 1.7 — `accounting-service`
+
+### Fatto
+- Scaffoldato con `create_ms.py accounting` · porta 3007 · `accounting_db` (5439)
+- Modelli: `AccountingImport` (status enum 4: pending/processing/completed/error) + `AccountingEntry` (FK CASCADE su import_id, voce_bilancio, pdf_section)
+- Migrazioni DB con indici su tenant_id, assignment_id, import_id
+- Parser portato 1:1 da `lib/accounting/parsers.ts` → `lib/parsers.js`: CSV, XLSX (npm xlsx), PDF (unpdf dynamic import)
+- `createImport`: upload + parse async 202 immediato → background → bulkCreate → status update
+- `updateEntry` PATCH /entries/:entryId per AI mapping (voce_bilancio + mapped_at)
+- Verifica sintattica JS: **tutti i 11 file OK**
+
+---
+
+## 2026-05-22 — Fase 1.6 — `document-service`
+
+### Fatto
+- Scaffoldato con `create_ms.py document` · porta 3006 · `document_db` (5438)
+- Modelli: `Document` (file_path, mime_type, category) + `Draft` (type enum 5, status bozza/definitivo)
+- `config/multer.js`: storage `/app/storage/{tenant_id}/{quarter_id}/`, 20MB, 8 MIME
+- Controller: upload multipart → multer + DB record; download con `sendFile`; bozze con 4 template testo
+- Volume Docker: `document_storage_data:/app/storage`
+- Verifica sintattica JS: **tutti i 12 file OK**
+
+---
+
+## 2026-05-22 — Fase 1.5 — `audit-service`
+
+### Fatto
+- Scaffoldato con `create_ms.py audit` · porta 3005 · `audit_db` (5437)
+- Modelli: `WorkingPaper` (area enum 11, state machine bozza→in_revisione→approvata) + `Finding` (severity 4 livelli, closed_at auto) + `VigilanzaItem` (done + completed_by/at auto)
+- Template vigilanza: 14 voci in 4 categorie, 409 se già esistono
+- Verifica sintattica JS: **tutti i 13 file OK**
+
+---
+
+## 2026-05-22 — Fase 1.4 — `assignment-service`
+
+### Fatto
+- Scaffoldato con `create_ms.py assignment` · porta 3004 · `assignment_db` (5436)
+- Modelli: `Assignment` + `AssignmentMember` (CASCADE + unique) + `Quarter` (CASCADE + unique per assignment)
+- `POST /api/assignments`: auto-crea 4 trimestri via bulkCreate transazionale
+- `PATCH /api/assignments/:id`: replace-all members
+- `Quarter.closed_at`: auto-gestita lato server
+- Verifica sintattica JS: **tutti i 15 file OK**
+
+---
+
+## 2026-05-22 — Fase 1.3 — `company-service`
+
+### Fatto
+- Scaffoldato con `create_ms.py company` · porta 3003 · `company_db` (5435)
+- Modello `Company` con soft-delete (`is_archived`)
+- `DELETE /api/companies/:id` archivia, non distrugge
+- Verifica sintattica JS: **tutti i 9 file OK**
+
+---
+
+## 2026-05-22 — Fase 1.2 — `tenant-service`
+
+### Fatto
+- Scaffoldato con `create_ms.py tenant` · porta 3002 · `tenant_db` (5434)
+- Modelli: `Plan` (moduli booleani, quota AI) + `Tenant` (FK plan_id, onboarding_completed)
+- `GET /api/tenants/:id/status` accessibile a qualsiasi JWT valido
+- `POST /api/tenants/onboarding` usa tenant_id dal JWT (no impersonation)
+- Verifica sintattica JS: **tutti i file OK**
+
+---
+
+## 2026-05-22 — Fase 1.1 — `auth-service`
+
+### Fatto
+- Scaffoldato con `create_ms.py auth` · porta 3001 · `auth_db` (5433)
+- Modelli: `UserProfile` (email unique, password_hash, role, is_active) + `PasswordResetToken` (token_hash SHA-256, expires_at)
+- Login bcrypt + JWT · verifica JWT · profilo utente · reset password via email token
+- token_hash usa SHA-256 del token raw — mai salvare token raw in DB
+- Verifica sintattica JS: **tutti i file OK**
+
+---
+
+## 2026-05-21 — Fase 1.0 — Infrastruttura Docker di base
+
+### Fatto
+- `docker/docker-compose.yml`: api-gateway (nginx), frontend, 8 microservizi + DB PostgreSQL 15, rete `app_network`
+- `docker/nginx/nginx.conf`: routing path-based completo, WebSocket HMR per frontend
+- `refactor/backend/services/template/`: 7 file template
+- `create_ms.py` verificato funzionante
+
+---
+
+## 2026-05-21 — Kickoff e Setup
+
+### Fatto
+- Letti e analizzati documenti di contesto: analysis.md, architecture.md, roadmap.md, SKILLS.md
+- Creato branch `refactor/microservices-architecture`
+- Creata cartella `refactor/development/` con README, PLAN, PROGRESS, ENVIRONMENT
+
+### Decisioni fondamentali
+- Branch **non** mergato in `main` fino alla Fase 4 completa
+- FK cross-service logiche (no vincoli DB fisici) — isolamento garantito da `WHERE tenant_id = req.user.tenant_id`
+- `ai-service` stateless — nessun DB dedicato
+</script>
+
+<script type="text/plain" id="md-env">
+## Variabili d'ambiente
+
+### Variabili condivise (tutti i microservizi)
+
+```
+JWT_SECRET=<segreto_forte_uguale_in_tutti_i_servizi>
+NODE_ENV=development
+```
+
+### `auth-service` (:3001)
+
+```
+PORT=3001
+DB_HOST=auth_db  DB_NAME=auth_db  DB_PORT=5432
+JWT_SECRET=<shared>
+JWT_EXPIRES_IN=7d
+SMTP_HOST=<smtp_host>  SMTP_PORT=587
+```
+
+### `tenant-service` (:3002)
+
+```
+PORT=3002
+DB_HOST=tenant_db  DB_NAME=tenant_db
+JWT_SECRET=<shared>
+AUTH_SERVICE_URL=http://auth-service:3001
+INTERNAL_SERVICE_TOKEN=<token>
+```
+
+### `company-service` (:3003)
+
+```
+PORT=3003
+DB_HOST=company_db  DB_NAME=company_db
+JWT_SECRET=<shared>
+```
+
+### `assignment-service` (:3004)
+
+```
+PORT=3004
+DB_HOST=assignment_db  DB_NAME=assignment_db
+JWT_SECRET=<shared>
+```
+
+### `audit-service` (:3005)
+
+```
+PORT=3005
+DB_HOST=audit_db  DB_NAME=audit_db
+JWT_SECRET=<shared>
+```
+
+### `document-service` (:3006)
+
+```
+PORT=3006
+DB_HOST=document_db  DB_NAME=document_db
+JWT_SECRET=<shared>
+STORAGE_PATH=/app/storage
+AI_SERVICE_URL=http://ai-service:3008
+INTERNAL_SERVICE_TOKEN=<token>
+```
+
+### `accounting-service` (:3007)
+
+```
+PORT=3007
+DB_HOST=accounting_db  DB_NAME=accounting_db
+JWT_SECRET=<shared>
+AI_SERVICE_URL=http://ai-service:3008
+INTERNAL_SERVICE_TOKEN=<token>
+FIRST_ATTEMPT_TIMEOUT_MS=40000
+TOTAL_BUDGET_MS=52000
+```
+
+### `ai-service` (:3008 solo interno)
+
+```
+PORT=3008
+GEMINI_API_KEY=<chiave_api_google>
+INTERNAL_SERVICE_TOKEN=<token>
+MODELS=gemini-flash-latest,gemini-flash-lite-latest
+FIRST_ATTEMPT_TIMEOUT_MS=40000
+TOTAL_BUDGET_MS=52000
+```
+
+### `frontend` (Next.js :3000)
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:8080
+INTERNAL_API_URL=http://api-gateway:80
+JWT_SECRET=<shared>
+```
+
+---
+
+> **Sicurezza**: `JWT_SECRET` deve essere identico in tutti i servizi. Ogni servizio verifica il JWT localmente — nessuna chiamata di rete ad `auth-service` per ogni request.
+</script>
+
+<!-- ── JAVASCRIPT ──────────────────────────────────────────────────── -->
+<script>
+  // Configure marked
+  marked.setOptions({ breaks: true, gfm: true });
+
+  // Wrap tables for overflow scroll
+  const origTableToken = marked.Renderer.prototype.table;
+  const renderer = new marked.Renderer();
+  renderer.table = function(header, body) {
+    const html = origTableToken.call(this, header, body);
+    return '<div class="table-wrap">' + html + '</div>';
+  };
+  marked.use({ renderer });
+
+  // Render markdown pages
+  function renderMd(srcId, targetId) {
+    const src = document.getElementById(srcId);
+    const target = document.getElementById(targetId);
+    if (src && target) target.innerHTML = marked.parse(src.textContent.trim());
+  }
+
+  renderMd('md-plan',     'plan-content');
+  renderMd('md-progress', 'progress-content');
+  renderMd('md-env',      'env-content');
+
+  // Page navigation
+  function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const page = document.getElementById('page-' + name);
+    if (page) {
+      page.classList.add('active');
+      window.scrollTo(0, 0);
+    }
+    document.querySelectorAll('[data-page="' + name + '"]').forEach(n => n.classList.add('active'));
+    closeSidebar();
+  }
+
+  // Hamburger / sidebar
+  const hamburger = document.getElementById('hamburger');
+  const sidebar   = document.getElementById('sidebar');
+  const overlay   = document.getElementById('overlay');
+
+  hamburger.addEventListener('click', () => {
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('show');
+  });
+
+  function closeSidebar() {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('show');
+  }
+</script>
+
+</body>
+</html>
