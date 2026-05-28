@@ -10,6 +10,7 @@ const PUBLIC_ROUTES = [
 ];
 
 const STATIC_OR_API_PREFIXES = [
+  "/api",
   "/_next",
   "/favicon",
   "/images",

@@ -32,7 +32,7 @@ export function getGatewayUrl(): string {
   }
 
   if (typeof window !== "undefined") {
-    return "http://localhost:8080";
+    return window.location.origin;
   }
 
   return "http://localhost:8080";
