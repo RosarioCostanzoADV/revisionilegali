@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
+import { apiFetch } from "@/lib/client-api";
 
 interface Company {
   id: string;
@@ -40,7 +41,7 @@ export function ModificaAziendaForm({ company }: { company: Company }) {
       notes: fd.get("notes") || null,
     };
 
-    const res = await fetch(`/api/companies/${company.id}`, {
+    const res = await apiFetch(`/api/companies/${company.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

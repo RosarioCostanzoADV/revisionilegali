@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
-
 export function PrintTrigger() {
   // Auto-print non attivo — l'utente sceglie quando stampare
   return (

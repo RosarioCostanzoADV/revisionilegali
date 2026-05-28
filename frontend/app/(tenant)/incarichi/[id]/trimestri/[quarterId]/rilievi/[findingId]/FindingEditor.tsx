@@ -38,7 +38,6 @@ export function FindingEditor({
   initialDueDate,
   initialWorkingPaperId,
   quarterPapers,
-  isOwnerOrRevisor,
 }: {
   findingId: string;
   initialTitle: string;
@@ -50,7 +49,6 @@ export function FindingEditor({
   initialDueDate: string;
   initialWorkingPaperId: string;
   quarterPapers: Paper[];
-  isOwnerOrRevisor: boolean;
 }) {
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
@@ -244,7 +242,7 @@ export function FindingEditor({
 
       {!isClosed && status === "chiuso" && (
         <p className="text-xs text-amber-600">
-          Attenzione: portando lo stato a "Chiuso" il rilievo verrà bloccato definitivamente.
+          Attenzione: portando lo stato a &quot;Chiuso&quot; il rilievo verra bloccato definitivamente.
         </p>
       )}
     </div>

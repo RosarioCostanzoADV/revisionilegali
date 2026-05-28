@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { gwJson } from "@/lib/api";
 import { FindingEditor } from "./FindingEditor";
-import type { MeResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +22,7 @@ export default async function FindingDetailPage({
 }) {
   const { id: assignmentId, quarterId, findingId } = await params;
 
-  const [me, finding, quarter, quarterPapers, assignmentSummary] = await Promise.all([
-    gwJson<MeResponse>("/api/auth/me"),
+  const [finding, quarter, quarterPapers, assignmentSummary] = await Promise.all([
     gwJson<{
       id: string; title: string; description?: string; recommendation?: string;
       severity: string; status: string; response?: string; due_date?: string;
@@ -42,7 +40,6 @@ export default async function FindingDetailPage({
 
   if (!finding || !quarter) redirect(`/incarichi/${assignmentId}/trimestri/${quarterId}`);
 
-  const isOwnerOrRevisor = me ? ["tenant_owner", "revisor"].includes(me.profile.role) : false;
   const sev = SEVERITY_STYLES[finding.severity] ?? SEVERITY_STYLES.media!;
   const fallbackCompany = !finding.quarter?.assignment?.company_name && assignmentSummary?.company_id
     ? await gwJson<{ name?: string }>(`/api/companies/${assignmentSummary.company_id}`)
@@ -101,7 +98,6 @@ export default async function FindingDetailPage({
         initialDueDate={finding.due_date ?? ""}
         initialWorkingPaperId={finding.working_paper_id ?? ""}
         quarterPapers={quarterPapers ?? []}
-        isOwnerOrRevisor={isOwnerOrRevisor}
       />
     </div>
   );

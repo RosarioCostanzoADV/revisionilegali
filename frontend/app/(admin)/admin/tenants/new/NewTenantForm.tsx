@@ -107,7 +107,7 @@ export function NewTenantForm({ plans }: { plans: Plan[] }) {
               minLength={8}
             />
             <p className="mt-1 text-xs text-gray-500">
-              L'utente potrà cambiarla tramite "Password dimenticata".
+              L&apos;utente potra cambiarla tramite &quot;Password dimenticata&quot;.
             </p>
           </div>
         </div>

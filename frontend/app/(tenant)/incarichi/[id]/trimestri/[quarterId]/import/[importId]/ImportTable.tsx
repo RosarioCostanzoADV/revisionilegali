@@ -29,15 +29,9 @@ function variationClass(pct: number | null): string {
 export function ImportTable({
   entries,
   importId,
-  assignmentId,
-  quarterId,
-  canDelete,
 }: {
   entries: Entry[];
   importId: string;
-  assignmentId: string;
-  quarterId: string;
-  canDelete: boolean;
 }) {
   const [filter, setFilter] = useState("");
   const [showOnlySignificant, setShowOnlySignificant] = useState(false);

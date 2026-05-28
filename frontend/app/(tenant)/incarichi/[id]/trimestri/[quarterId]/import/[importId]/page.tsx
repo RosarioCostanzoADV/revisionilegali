@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { gwJson } from "@/lib/api";
-import type { MeResponse } from "@/lib/types";
 import { ImportTable } from "./ImportTable";
 import { AnalisiRischio, type AreaSummary } from "./AnalisiRischio";
 import { AnalisiDocumento } from "./AnalisiDocumento";
@@ -130,8 +129,7 @@ export default async function ImportDetailPage({
 }) {
   const { id: assignmentId, quarterId, importId } = await params;
 
-  const [me, imp, quarter, entries, assignmentSummary] = await Promise.all([
-    gwJson<MeResponse>("/api/auth/me"),
+  const [imp, quarter, entries, assignmentSummary] = await Promise.all([
     gwJson<{
       id: string; filename: string; period_label?: string; row_count?: number;
       notes?: string; doc_type?: string; created_at: string;
@@ -145,7 +143,6 @@ export default async function ImportDetailPage({
 
   if (!imp || !quarter) redirect(`/incarichi/${assignmentId}/trimestri/${quarterId}`);
 
-  const canEdit = me ? ["tenant_owner", "revisor"].includes(me.profile.role) : false;
   const fallbackCompany = !imp.quarter?.assignment?.company_name && assignmentSummary?.company_id
     ? await gwJson<{ name?: string }>(`/api/companies/${assignmentSummary.company_id}`)
     : null;
@@ -211,9 +208,6 @@ export default async function ImportDetailPage({
         <ImportTable
           entries={entries ?? []}
           importId={importId}
-          assignmentId={assignmentId}
-          quarterId={quarterId}
-          canDelete={canEdit}
         />
       </div>
     </div>
