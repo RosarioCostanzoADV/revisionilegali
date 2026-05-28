@@ -42,7 +42,10 @@ services:
   # FRONTEND
   # ---------------------------------------------------------------------------
   frontend:
-    build: ../frontend
+    build:
+      context: ../frontend
+      args:
+        NEXT_PUBLIC_GATEWAY_URL: http://localhost:8080
     container_name: frontend
     environment:
       - NODE_ENV=production
