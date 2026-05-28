@@ -21,13 +21,14 @@ export default async function DraftPage({
 }) {
   const { id: assignmentId, draftId } = await params;
 
-  const [me, draft] = await Promise.all([
+  const [me, draft, assignmentSummary] = await Promise.all([
     gwJson<MeResponse>("/api/auth/me"),
     gwJson<{
       id: string; title: string; type: string; content?: string; status: string;
       created_by: string; created_by_name?: string; created_at: string; updated_at: string;
       assignment?: { id: string; year: number; company_name?: string };
     }>(`/api/drafts/${draftId}`),
+    gwJson<{ id: string; year: number; company_id?: string; company_name?: string }>(`/api/assignments/${assignmentId}`),
   ]);
 
   if (!me || !["tenant_owner", "revisor"].includes(me.profile.role)) {
@@ -35,8 +36,11 @@ export default async function DraftPage({
   }
   if (!draft) redirect(`/incarichi/${assignmentId}`);
 
-  const companyName = draft.assignment?.company_name ?? "—";
-  const assignmentYear = draft.assignment?.year;
+  const fallbackCompany = !draft.assignment?.company_name && assignmentSummary?.company_id
+    ? await gwJson<{ name?: string }>(`/api/companies/${assignmentSummary.company_id}`)
+    : null;
+  const companyName = draft.assignment?.company_name ?? assignmentSummary?.company_name ?? fallbackCompany?.name ?? "—";
+  const assignmentYear = draft.assignment?.year ?? assignmentSummary?.year;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

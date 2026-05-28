@@ -130,7 +130,7 @@ export default async function ImportDetailPage({
 }) {
   const { id: assignmentId, quarterId, importId } = await params;
 
-  const [me, imp, quarter, entries] = await Promise.all([
+  const [me, imp, quarter, entries, assignmentSummary] = await Promise.all([
     gwJson<MeResponse>("/api/auth/me"),
     gwJson<{
       id: string; filename: string; period_label?: string; row_count?: number;
@@ -140,13 +140,17 @@ export default async function ImportDetailPage({
     }>(`/api/accounting/imports/${importId}`),
     gwJson<{ id: string; quarter: number }>(`/api/quarters/${quarterId}`),
     gwJson<Entry[]>(`/api/accounting/imports/${importId}/analisi`),
+    gwJson<{ id: string; year: number; company_id?: string; company_name?: string }>(`/api/assignments/${assignmentId}`),
   ]);
 
   if (!imp || !quarter) redirect(`/incarichi/${assignmentId}/trimestri/${quarterId}`);
 
   const canEdit = me ? ["tenant_owner", "revisor"].includes(me.profile.role) : false;
-  const companyName = imp.quarter?.assignment?.company_name ?? "—";
-  const assignmentYear = imp.quarter?.assignment?.year;
+  const fallbackCompany = !imp.quarter?.assignment?.company_name && assignmentSummary?.company_id
+    ? await gwJson<{ name?: string }>(`/api/companies/${assignmentSummary.company_id}`)
+    : null;
+  const companyName = imp.quarter?.assignment?.company_name ?? assignmentSummary?.company_name ?? fallbackCompany?.name ?? "—";
+  const assignmentYear = imp.quarter?.assignment?.year ?? assignmentSummary?.year;
 
   const { areas, hasPrev } = computeAreaAnalysis(entries ?? []);
 

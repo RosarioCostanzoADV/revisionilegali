@@ -19,12 +19,17 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
 export default async function IncarichiPage() {
   const [me, assignments] = await Promise.all([
     gwJson<MeResponse>("/api/auth/me"),
-    gwJson<{ id: string; year: number; type: string; status: string; company_name?: string }[]>("/api/assignments"),
+    gwJson<{ id: string; company_id?: string; year: number; type: string; status: string; company_name?: string }[]>("/api/assignments"),
   ]);
 
   if (!me) return null;
 
   const canCreate = ["tenant_owner", "revisor"].includes(me.profile.role);
+  const shouldResolveCompanies = (assignments ?? []).some((a) => !a.company_name && !!a.company_id);
+  const companies = shouldResolveCompanies
+    ? await gwJson<{ id: string; name: string }[]>("/api/companies")
+    : [];
+  const companyNameById = Object.fromEntries((companies ?? []).map((c) => [c.id, c.name]));
 
   return (
     <div className="space-y-6">
@@ -60,9 +65,10 @@ export default async function IncarichiPage() {
             <tbody className="divide-y divide-gray-100">
               {assignments.map((a) => {
                 const s = STATUS_LABELS[a.status] ?? STATUS_LABELS.aperto!;
+                const companyName = a.company_name ?? (a.company_id ? companyNameById[a.company_id] : undefined) ?? "—";
                 return (
                   <tr key={a.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{a.company_name ?? "—"}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">{companyName}</td>
                     <td className="px-4 py-3 text-gray-700">{a.year}</td>
                     <td className="px-4 py-3 text-gray-700">{TYPE_LABELS[a.type] ?? a.type}</td>
                     <td className="px-4 py-3">

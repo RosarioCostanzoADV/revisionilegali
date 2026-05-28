@@ -32,7 +32,7 @@ const ASSIGNMENT_TYPE_LABELS: Record<string, string> = {
 export default async function DashboardPage() {
   const [me, assignments, findings] = await Promise.all([
     gwJson<{ profile: { full_name: string | null; role: string }; tenant: { name: string } | null }>("/api/auth/me"),
-    gwJson<{ id: string; year: number; type: string; status: string; company_name?: string }[]>("/api/assignments?limit=5"),
+    gwJson<{ id: string; company_id?: string; year: number; type: string; status: string; company_name?: string }[]>("/api/assignments?limit=5"),
     gwJson<{ id: string; title: string; severity: string; status: string; due_date: string | null; assignment_id: string }[]>(
       "/api/audit/findings?status_neq=chiuso&severity_in=high,critical&limit=5&sort=due_date",
     ),
@@ -49,6 +49,11 @@ export default async function DashboardPage() {
   const pendingPapers = allPapers?.filter((p) => p.status === "in_revisione").length ?? 0;
 
   const recentAssignments = assignments ?? [];
+  const shouldResolveCompanies = recentAssignments.some((a) => !a.company_name && !!a.company_id);
+  const companies = shouldResolveCompanies
+    ? await gwJson<{ id: string; name: string }[]>("/api/companies")
+    : [];
+  const companyNameById = Object.fromEntries((companies ?? []).map((c) => [c.id, c.name]));
   const urgentFindings = findings ?? [];
 
   const today = new Date();
@@ -96,11 +101,12 @@ export default async function DashboardPage() {
             <ul className="divide-y divide-gray-100">
               {recentAssignments.map((a) => {
                 const s = STATUS_LABELS[a.status] ?? STATUS_LABELS.aperto!;
+                const companyName = a.company_name ?? (a.company_id ? companyNameById[a.company_id] : undefined) ?? "—";
                 return (
                   <li key={a.id} className="flex items-center justify-between py-2">
                     <div>
                       <p className="text-sm font-medium text-gray-900">
-                        {a.company_name ?? "—"} — {a.year}
+                        {companyName} — {a.year}
                       </p>
                       <p className="text-xs text-gray-500">{ASSIGNMENT_TYPE_LABELS[a.type] ?? a.type}</p>
                     </div>

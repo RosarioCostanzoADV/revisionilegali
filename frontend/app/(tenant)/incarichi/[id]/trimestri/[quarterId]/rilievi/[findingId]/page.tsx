@@ -23,7 +23,7 @@ export default async function FindingDetailPage({
 }) {
   const { id: assignmentId, quarterId, findingId } = await params;
 
-  const [me, finding, quarter, quarterPapers] = await Promise.all([
+  const [me, finding, quarter, quarterPapers, assignmentSummary] = await Promise.all([
     gwJson<MeResponse>("/api/auth/me"),
     gwJson<{
       id: string; title: string; description?: string; recommendation?: string;
@@ -37,14 +37,18 @@ export default async function FindingDetailPage({
     gwJson<{ id: string; title: string }[]>(
       `/api/audit/working-papers?quarter_id=${quarterId}`
     ),
+    gwJson<{ id: string; year: number; company_id?: string; company_name?: string }>(`/api/assignments/${assignmentId}`),
   ]);
 
   if (!finding || !quarter) redirect(`/incarichi/${assignmentId}/trimestri/${quarterId}`);
 
   const isOwnerOrRevisor = me ? ["tenant_owner", "revisor"].includes(me.profile.role) : false;
   const sev = SEVERITY_STYLES[finding.severity] ?? SEVERITY_STYLES.media!;
-  const companyName = finding.quarter?.assignment?.company_name ?? "—";
-  const assignmentYear = finding.quarter?.assignment?.year;
+  const fallbackCompany = !finding.quarter?.assignment?.company_name && assignmentSummary?.company_id
+    ? await gwJson<{ name?: string }>(`/api/companies/${assignmentSummary.company_id}`)
+    : null;
+  const companyName = finding.quarter?.assignment?.company_name ?? assignmentSummary?.company_name ?? fallbackCompany?.name ?? "—";
+  const assignmentYear = finding.quarter?.assignment?.year ?? assignmentSummary?.year;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
