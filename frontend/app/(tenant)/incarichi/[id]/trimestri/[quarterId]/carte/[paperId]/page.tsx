@@ -24,7 +24,7 @@ export default async function WorkingPaperPage({
 }) {
   const { id: assignmentId, quarterId, paperId } = await params;
 
-  const [me, wp, quarter] = await Promise.all([
+  const [me, wp, quarter, assignmentSummary] = await Promise.all([
     gwJson<MeResponse>("/api/auth/me"),
     gwJson<{
       id: string; title: string; area: string; content?: string; status: string;
@@ -34,14 +34,18 @@ export default async function WorkingPaperPage({
       quarter?: { id: string; quarter: number; assignment?: { id: string; year: number; company_name?: string } };
     }>(`/api/audit/working-papers/${paperId}`),
     gwJson<{ id: string; quarter: number }>(`/api/quarters/${quarterId}`),
+    gwJson<{ id: string; year: number; company_id?: string; company_name?: string }>(`/api/assignments/${assignmentId}`),
   ]);
 
   if (!wp || !quarter) redirect(`/incarichi/${assignmentId}/trimestri/${quarterId}`);
 
   const isOwnerOrRevisor = me ? ["tenant_owner", "revisor"].includes(me.profile.role) : false;
   const canEdit = wp.status !== "approvata" && isOwnerOrRevisor;
-  const companyName = wp.quarter?.assignment?.company_name ?? "—";
-  const assignmentYear = wp.quarter?.assignment?.year;
+  const fallbackCompany = !wp.quarter?.assignment?.company_name && assignmentSummary?.company_id
+    ? await gwJson<{ name?: string }>(`/api/companies/${assignmentSummary.company_id}`)
+    : null;
+  const companyName = wp.quarter?.assignment?.company_name ?? assignmentSummary?.company_name ?? fallbackCompany?.name ?? "—";
+  const assignmentYear = wp.quarter?.assignment?.year ?? assignmentSummary?.year;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

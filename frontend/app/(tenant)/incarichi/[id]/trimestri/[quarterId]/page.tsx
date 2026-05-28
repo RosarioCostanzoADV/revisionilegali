@@ -63,6 +63,10 @@ export default async function QuarterDetailPage({
   if (!quarter) redirect(`/incarichi/${assignmentId}`);
 
   const assignment = quarter.assignment;
+  const fallbackCompany = assignment && !assignment.company_name && assignment.company_id
+    ? await gwJson<{ name?: string }>(`/api/companies/${assignment.company_id}`)
+    : null;
+  const assignmentCompanyName = assignment?.company_name ?? fallbackCompany?.name ?? "—";
   const canEdit = me ? ["tenant_owner", "revisor"].includes(me.profile.role) : false;
   const s = STATUS_LABELS[quarter.status] ?? STATUS_LABELS.aperto!;
 
@@ -74,7 +78,7 @@ export default async function QuarterDetailPage({
           <Link href="/incarichi" className="hover:text-brand-600">Incarichi</Link>
           <span>›</span>
           <Link href={`/incarichi/${assignmentId}`} className="hover:text-brand-600">
-            {assignment?.company_name ?? "—"} — {assignment?.year}
+            {assignmentCompanyName} — {assignment?.year}
           </Link>
           <span>›</span>
           <span className="text-gray-600">{QUARTER_LABELS[quarter.quarter]}</span>
@@ -93,6 +97,14 @@ export default async function QuarterDetailPage({
         currentStatus={quarter.status}
         currentNotes={quarter.notes ?? ''}
         canEdit={canEdit}
+      />
+
+      <ImportSection
+        quarterId={quarterId}
+        assignmentId={assignmentId}
+        initialImports={accountingImports ?? []}
+        uploaderNames={{}}
+        canUpload={canEdit}
       />
 
       <DocumentiSection
@@ -124,14 +136,6 @@ export default async function QuarterDetailPage({
         quarterId={quarterId}
         initialItems={vigilanzaItems ?? []}
         completedByNames={{}}
-      />
-
-      <ImportSection
-        quarterId={quarterId}
-        assignmentId={assignmentId}
-        initialImports={accountingImports ?? []}
-        uploaderNames={{}}
-        canUpload={canEdit}
       />
 
       <VerbaliSection

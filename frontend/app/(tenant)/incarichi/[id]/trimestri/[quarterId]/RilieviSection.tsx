@@ -44,7 +44,7 @@ export function RilieviSection({
   initialFindings: Finding[];
   raisedByNames: Record<string, string>;
 }) {
-  const [findings, setFindings] = useState<Finding[]>(initialFindings);
+  const [findings] = useState<Finding[]>(initialFindings);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

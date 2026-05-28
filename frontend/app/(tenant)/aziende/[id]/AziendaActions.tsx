@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
+import { apiFetch } from "@/lib/client-api";
 
 export function AziendaActions({
   companyId,
@@ -17,7 +18,7 @@ export function AziendaActions({
   async function toggleArchive() {
     setLoading(true);
     setError(null);
-    const res = await fetch(`/api/companies/${companyId}`, {
+    const res = await apiFetch(`/api/companies/${companyId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ is_archived: !isArchived }),

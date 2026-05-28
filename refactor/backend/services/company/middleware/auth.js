@@ -1,8 +1,29 @@
 const jwt = require('jsonwebtoken');
 
+const getTokenFromCookie = (cookieHeader) => {
+    if (!cookieHeader) return null;
+
+    const cookies = cookieHeader.split(';');
+    for (const rawCookie of cookies) {
+        const cookie = rawCookie.trim();
+        if (!cookie.startsWith('auth_token=')) continue;
+
+        const value = cookie.slice('auth_token='.length);
+        try {
+            return decodeURIComponent(value);
+        } catch {
+            return value;
+        }
+    }
+
+    return null;
+};
+
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    const bearerToken = authHeader && authHeader.split(' ')[1];
+    const cookieToken = getTokenFromCookie(req.headers['cookie']);
+    const token = bearerToken || cookieToken;
 
     if (!token) return res.sendStatus(401);
 

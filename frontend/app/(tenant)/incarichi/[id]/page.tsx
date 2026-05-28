@@ -56,6 +56,11 @@ export default async function IncaricoDetailPage({
 
   if (!assignment) notFound();
 
+  const fallbackCompany = !assignment.company_name && assignment.company_id
+    ? await gwJson<{ name?: string }>(`/api/companies/${assignment.company_id}`)
+    : null;
+  const assignmentCompanyName = assignment.company_name ?? fallbackCompany?.name ?? "—";
+
   const canEdit = me ? ["tenant_owner", "revisor"].includes(me.profile.role) : false;
   const s = STATUS_LABELS[assignment.status] ?? STATUS_LABELS.aperto!;
   const memberIds = assignment.member_ids ?? (assignment.members ?? []).map((m) => m.id);
@@ -66,7 +71,7 @@ export default async function IncaricoDetailPage({
         <Link href="/incarichi" className="text-sm text-brand-600 hover:text-brand-700">← Tutti gli incarichi</Link>
         <div className="mt-2 flex items-center gap-3">
           <h1 className="text-2xl font-bold text-gray-900">
-            {assignment.company_name ?? "—"} — {assignment.year}
+            {assignmentCompanyName} — {assignment.year}
           </h1>
           <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${s.className}`}>{s.label}</span>
         </div>
@@ -106,7 +111,7 @@ export default async function IncaricoDetailPage({
             <dd className="mt-0.5 font-medium text-gray-900">
               {assignment.company_id ? (
                 <Link href={`/aziende/${assignment.company_id}`} className="text-brand-600 hover:text-brand-700">
-                  {assignment.company_name ?? "—"}
+                  {assignmentCompanyName}
                 </Link>
               ) : "—"}
             </dd>

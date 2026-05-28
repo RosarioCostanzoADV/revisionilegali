@@ -17,12 +17,13 @@ export default async function NuovoImportPage({
 }) {
   const { id: assignmentId, quarterId } = await params;
 
-  const [me, quarter] = await Promise.all([
+  const [me, quarter, assignmentSummary] = await Promise.all([
     gwJson<MeResponse>("/api/auth/me"),
     gwJson<{
       id: string; quarter: number;
       assignment?: { id: string; year: number; company_name?: string };
     }>(`/api/quarters/${quarterId}`),
+    gwJson<{ id: string; year: number; company_id?: string; company_name?: string }>(`/api/assignments/${assignmentId}`),
   ]);
 
   if (!me || !["tenant_owner", "revisor"].includes(me.profile.role)) {
@@ -30,8 +31,11 @@ export default async function NuovoImportPage({
   }
   if (!quarter) redirect(`/incarichi/${assignmentId}`);
 
-  const companyName = quarter.assignment?.company_name ?? "—";
-  const year = quarter.assignment?.year;
+  const fallbackCompany = !quarter.assignment?.company_name && assignmentSummary?.company_id
+    ? await gwJson<{ name?: string }>(`/api/companies/${assignmentSummary.company_id}`)
+    : null;
+  const companyName = quarter.assignment?.company_name ?? assignmentSummary?.company_name ?? fallbackCompany?.name ?? "—";
+  const year = quarter.assignment?.year ?? assignmentSummary?.year;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

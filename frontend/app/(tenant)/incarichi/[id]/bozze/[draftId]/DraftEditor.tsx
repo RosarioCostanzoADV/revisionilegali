@@ -163,7 +163,7 @@ export function DraftEditor({
 
       {isDefinitivo && (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Documento definitivo — usa "Stampa / Esporta PDF" per produrre il PDF finale.
+          Documento definitivo — usa &quot;Stampa / Esporta PDF&quot; per produrre il PDF finale.
         </div>
       )}
     </div>

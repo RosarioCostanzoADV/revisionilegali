@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
+import { apiFetch } from "@/lib/client-api";
 
 export function NuovaAziendaForm() {
   const [loading, setLoading] = useState(false);
@@ -26,7 +27,7 @@ export function NuovaAziendaForm() {
       notes: fd.get("notes") || null,
     };
 
-    const res = await fetch("/api/companies", {
+    const res = await apiFetch("/api/companies", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
