@@ -95,6 +95,14 @@ export default async function QuarterDetailPage({
         canEdit={canEdit}
       />
 
+      <ImportSection
+        quarterId={quarterId}
+        assignmentId={assignmentId}
+        initialImports={accountingImports ?? []}
+        uploaderNames={{}}
+        canUpload={canEdit}
+      />
+
       <DocumentiSection
         quarterId={quarterId}
         initialDocuments={documents ?? []}
@@ -124,14 +132,6 @@ export default async function QuarterDetailPage({
         quarterId={quarterId}
         initialItems={vigilanzaItems ?? []}
         completedByNames={{}}
-      />
-
-      <ImportSection
-        quarterId={quarterId}
-        assignmentId={assignmentId}
-        initialImports={accountingImports ?? []}
-        uploaderNames={{}}
-        canUpload={canEdit}
       />
 
       <VerbaliSection
