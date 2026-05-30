@@ -50,22 +50,38 @@ export async function POST(request: Request) {
   const isSpreadsheet = ["xlsx", "xls", "ods"].includes(ext);
   const isPDF = ext === "pdf";
 
+  // Leggi il buffer una sola volta (arrayBuffer() non è ri-leggibile su alcuni runtime)
+  const fileBuffer = isSpreadsheet || isPDF ? await file.arrayBuffer() : null;
+  const fileText = !isPDF && !isSpreadsheet ? await file.text() : null;
+
   let rawEntries;
-  if (isSpreadsheet) {
-    rawEntries = parseSpreadsheet(await file.arrayBuffer());
-  } else if (isPDF) {
-    rawEntries = await parsePDF(await file.arrayBuffer());
-  } else {
-    rawEntries = parseCSV(await file.text());
+  try {
+    if (isSpreadsheet) {
+      rawEntries = parseSpreadsheet(fileBuffer!);
+    } else if (isPDF) {
+      rawEntries = await parsePDF(fileBuffer!);
+    } else {
+      rawEntries = parseCSV(fileText!);
+    }
+  } catch (parseErr) {
+    const msg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+    return NextResponse.json(
+      { error: `Errore durante la lettura del file: ${msg}` },
+      { status: 400 },
+    );
   }
 
   if (rawEntries.length === 0) {
     let hint = "";
-    if (isPDF) {
-      const { extractText } = await import("unpdf");
-      const buf = await file.arrayBuffer();
-      const { text } = await extractText(new Uint8Array(buf), { mergePages: true });
-      hint = `\nTesto estratto (800 car.): ${(text ?? "").substring(0, 800)}`;
+    if (isPDF && fileBuffer) {
+      try {
+        const { extractText } = await import("unpdf");
+        const result = await extractText(new Uint8Array(fileBuffer), { mergePages: true });
+        const text = (result as { text: string }).text ?? "";
+        hint = `\nTesto estratto (800 car.): ${text.substring(0, 800)}`;
+      } catch {
+        hint = "\n(impossibile estrarre il testo dal PDF)";
+      }
     }
     return NextResponse.json(
       { error: `Nessuna voce rilevata nel file.${hint}` },

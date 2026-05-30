@@ -329,8 +329,13 @@ export async function parsePDF(buffer: ArrayBuffer): Promise<ParsedEntry[]> {
     pages = Array.isArray(raw) ? raw : [raw ?? ""];
   } catch {
     // Fallback: merge tutto in una pagina
-    const merged = await extractText(new Uint8Array(buffer), { mergePages: true });
-    pages = [(merged as { text: string }).text ?? ""];
+    try {
+      const merged = await extractText(new Uint8Array(buffer), { mergePages: true });
+      pages = [(merged as { text: string }).text ?? ""];
+    } catch {
+      // Se anche il fallback fallisce, restituiamo array vuoto (zero voci)
+      pages = [];
+    }
   }
 
   const allEntries: ParsedEntry[] = [];
