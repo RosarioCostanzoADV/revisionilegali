@@ -122,4 +122,19 @@ const updateVigilanzaItem = async (req, res) => {
     }
 };
 
-module.exports = { listVigilanzaItems, createVigilanzaItem, updateVigilanzaItem };
+// DELETE /api/vigilanza/:id
+const deleteVigilanzaItem = async (req, res) => {
+    try {
+        const item = await VigilanzaItem.findOne({
+            where: { id: req.params.id, tenant_id: req.user.tenant_id }
+        });
+        if (!item) return res.status(404).json({ error: 'Elemento non trovato' });
+        await item.destroy();
+        return res.json({ ok: true });
+    } catch (err) {
+        console.error('deleteVigilanzaItem error:', err);
+        return res.status(500).json({ error: 'Errore interno del server' });
+    }
+};
+
+module.exports = { listVigilanzaItems, createVigilanzaItem, updateVigilanzaItem, deleteVigilanzaItem };

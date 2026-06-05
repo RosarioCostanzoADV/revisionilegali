@@ -22,5 +22,6 @@ router.post('/', requireSuperAdmin, createTenant);
 router.post('/onboarding', completeOnboarding);
 router.get('/:id', getTenant);
 router.put('/:id', updateTenant);
+router.patch('/:id', updateTenant);
 
 module.exports = router;

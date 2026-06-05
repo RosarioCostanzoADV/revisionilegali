@@ -1,0 +1,12 @@
+import { NextRequest } from "next/server";
+import { proxyTo } from "../../_proxy";
+
+type Ctx = { params: Promise<{ quarterId: string }> };
+
+async function handler(req: NextRequest, ctx: Ctx) {
+  const { quarterId } = await ctx.params;
+  return proxyTo(req, `/api/quarters/${quarterId}`);
+}
+
+export const GET = handler;
+export const PATCH = handler;

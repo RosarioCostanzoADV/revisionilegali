@@ -103,4 +103,19 @@ const updateFinding = async (req, res) => {
     }
 };
 
-module.exports = { listFindings, getFinding, createFinding, updateFinding };
+// DELETE /api/findings/:id
+const deleteFinding = async (req, res) => {
+    try {
+        const finding = await Finding.findOne({
+            where: { id: req.params.id, tenant_id: req.user.tenant_id }
+        });
+        if (!finding) return res.status(404).json({ error: 'Rilievo non trovato' });
+        await finding.destroy();
+        return res.json({ ok: true });
+    } catch (err) {
+        console.error('deleteFinding error:', err);
+        return res.status(500).json({ error: 'Errore interno del server' });
+    }
+};
+
+module.exports = { listFindings, getFinding, createFinding, updateFinding, deleteFinding };

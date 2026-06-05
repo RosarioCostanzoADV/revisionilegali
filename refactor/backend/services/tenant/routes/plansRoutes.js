@@ -11,5 +11,6 @@ router.get('/', listPlans);
 router.get('/:id', getPlan);
 router.post('/', requireSuperAdmin, createPlan);
 router.put('/:id', requireSuperAdmin, updatePlan);
+router.patch('/:id', requireSuperAdmin, updatePlan);
 
 module.exports = router;

@@ -13,6 +13,6 @@ router.get('/accounting/health', (req, res) => {
     res.json({ status: 'OK', service: process.env.SERVICE_NAME || 'accounting-service' });
 });
 
-router.use('/imports', authenticateToken, importsRoutes);
+router.use('/accounting/imports', authenticateToken, importsRoutes);
 
 module.exports = router;

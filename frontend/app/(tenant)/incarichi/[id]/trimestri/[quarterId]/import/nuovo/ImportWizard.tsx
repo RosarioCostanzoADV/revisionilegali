@@ -113,6 +113,7 @@ export function ImportWizard({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        assignment_id: assignmentId,
         quarter_id: quarterId,
         period_label: periodLabel,
         notes,

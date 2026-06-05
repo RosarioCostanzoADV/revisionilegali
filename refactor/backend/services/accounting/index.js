@@ -11,6 +11,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Rende i modelli Sequelize disponibili nei controller via req.app.locals.db
+app.locals.db = db;
+
 // Swagger placeholder
 app.get('/swagger', (req, res) => {
     res.json({ message: 'Swagger documentation will be available here' });

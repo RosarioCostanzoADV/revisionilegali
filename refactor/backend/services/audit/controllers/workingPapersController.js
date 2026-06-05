@@ -136,4 +136,19 @@ const updateWorkingPaper = async (req, res) => {
     }
 };
 
-module.exports = { listWorkingPapers, getWorkingPaper, createWorkingPaper, updateWorkingPaper };
+// DELETE /api/working-papers/:id
+const deleteWorkingPaper = async (req, res) => {
+    try {
+        const wp = await WorkingPaper.findOne({
+            where: { id: req.params.id, tenant_id: req.user.tenant_id }
+        });
+        if (!wp) return res.status(404).json({ error: 'Carta di lavoro non trovata' });
+        await wp.destroy();
+        return res.json({ ok: true });
+    } catch (err) {
+        console.error('deleteWorkingPaper error:', err);
+        return res.status(500).json({ error: 'Errore interno del server' });
+    }
+};
+
+module.exports = { listWorkingPapers, getWorkingPaper, createWorkingPaper, updateWorkingPaper, deleteWorkingPaper };
