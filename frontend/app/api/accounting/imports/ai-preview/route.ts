@@ -11,18 +11,43 @@ async function proxyAiPreviewRequest(request: NextRequest) {
 
   if (token) headers.set("authorization", `Bearer ${token}`);
 
-  const upstream = await fetch(`${getGatewayUrl()}/api/accounting/imports/ai-preview${query}`, {
-    method: request.method,
-    headers,
-    body: await request.formData(),
-    cache: "no-store",
-  });
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch (err) {
+    console.error("[ai-preview] formData parse error:", err);
+    return new Response(JSON.stringify({ error: "Errore lettura file upload." }), {
+      status: 400,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${getGatewayUrl()}/api/accounting/imports/ai-preview${query}`, {
+      method: request.method,
+      headers,
+      body: formData,
+      cache: "no-store",
+    });
+  } catch (err) {
+    console.error("[ai-preview] upstream fetch error:", err);
+    return new Response(JSON.stringify({ error: "Gateway non raggiungibile." }), {
+      status: 502,
+      headers: { "content-type": "application/json" },
+    });
+  }
 
   const responseHeaders = new Headers();
   const responseContentType = upstream.headers.get("content-type");
   if (responseContentType) responseHeaders.set("content-type", responseContentType);
 
-  return new Response(await upstream.text(), {
+  const body = await upstream.text();
+  if (!upstream.ok) {
+    console.error(`[ai-preview] upstream ${upstream.status}:`, body);
+  }
+
+  return new Response(body, {
     status: upstream.status,
     headers: responseHeaders,
   });
