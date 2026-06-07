@@ -29,6 +29,12 @@ export async function proxyTo(
   const ct = upstream.headers.get("content-type");
   if (ct) responseHeaders.set("content-type", ct);
 
+  // 204/205/304 sono "null body status": non possono avere body (TypeError altrimenti)
+  const nullBodyStatuses = [101, 204, 205, 304];
+  if (nullBodyStatuses.includes(upstream.status)) {
+    return new Response(null, { status: upstream.status, headers: responseHeaders });
+  }
+
   return new Response(await upstream.text(), {
     status: upstream.status,
     headers: responseHeaders,
