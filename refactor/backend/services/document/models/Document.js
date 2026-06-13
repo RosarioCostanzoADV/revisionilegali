@@ -16,9 +16,13 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.UUID,
             allowNull: false
         },
+        assignment_id: {
+            type: DataTypes.UUID,
+            allowNull: true
+        },
         quarter_id: {
             type: DataTypes.UUID,
-            allowNull: false
+            allowNull: true
         },
         name: {
             type: DataTypes.STRING(300),
@@ -48,6 +52,11 @@ module.exports = (sequelize, DataTypes) => {
         uploaded_by: {
             type: DataTypes.UUID,
             allowNull: true
+        },
+        owns_file: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: true
         }
     }, {
         sequelize,

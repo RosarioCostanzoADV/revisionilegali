@@ -1,5 +1,6 @@
 'use strict';
 
+const { Op } = require('sequelize');
 const { Assignment, AssignmentMember, Quarter } = require('../models');
 
 const VALID_TYPES = ['revisione_legale', 'collegio_sindacale', 'sindaco_unico'];
@@ -153,4 +154,31 @@ const listQuarters = async (req, res) => {
     }
 };
 
-module.exports = { listAssignments, getAssignment, createAssignment, updateAssignment, listQuarters };
+// GET /api/assignments/:id/previous  — incarico precedente per stessa azienda
+const getPreviousAssignment = async (req, res) => {
+    try {
+        const current = await Assignment.findOne({
+            where: { id: req.params.id, tenant_id: req.user.tenant_id },
+            attributes: ['id', 'company_id', 'year']
+        });
+        if (!current) return res.status(404).json({ error: 'Incarico non trovato' });
+
+        const prev = await Assignment.findOne({
+            where: {
+                tenant_id: req.user.tenant_id,
+                company_id: current.company_id,
+                year: { [Op.lt]: current.year }
+            },
+            attributes: ['id', 'year'],
+            order: [['year', 'DESC']]
+        });
+
+        if (!prev) return res.status(404).json({ error: 'Nessun incarico precedente trovato' });
+        return res.json(prev);
+    } catch (err) {
+        console.error('getPreviousAssignment error:', err);
+        return res.status(500).json({ error: 'Errore interno del server' });
+    }
+};
+
+module.exports = { listAssignments, getAssignment, createAssignment, updateAssignment, listQuarters, getPreviousAssignment };

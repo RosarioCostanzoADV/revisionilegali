@@ -1,13 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { gwJson } from "@/lib/api";
-import { QuarterStatusForm } from "./QuarterStatusForm";
-import { DocumentiSection } from "./DocumentiSection";
-import { CarteSection } from "./CarteSection";
-import { RilieviSection } from "./RilieviSection";
-import { VigilanzaSection } from "./VigilanzaSection";
-import { ImportSection } from "./ImportSection";
-import { VerbaliSection } from "./VerbaliSection";
+import { AssignmentChecklist } from "../../AssignmentChecklist";
+import type { DocItem } from "../../DocumentBrowserModal";
+import { ASSIGNMENT_CATEGORIES } from "@/lib/assignment-categories";
 import type { MeResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +29,7 @@ export default async function QuarterDetailPage({
 }) {
   const { id: assignmentId, quarterId } = await params;
 
-  const [me, quarter, assignment, documents, papers, findings, vigilanzaItems, accountingImports, quarterDrafts] = await Promise.all([
+  const [me, quarter, assignment, documents, categoryFlags, previousAssignment] = await Promise.all([
     gwJson<MeResponse>("/api/auth/me"),
     gwJson<{
       id: string; quarter: number; status: string; notes?: string;
@@ -46,21 +42,8 @@ export default async function QuarterDetailPage({
     gwJson<{ id: string; name: string; file_path: string; file_size: number | null; mime_type: string | null; category: string; notes: string | null; created_at: string; uploaded_by: string }[]>(
       `/api/documents?quarter_id=${quarterId}`
     ),
-    gwJson<{ id: string; title: string; area: string; status: string; prepared_by: string; prepared_by_name?: string; created_at: string }[]>(
-      `/api/audit/working-papers?quarter_id=${quarterId}`
-    ),
-    gwJson<{ id: string; title: string; severity: string; status: string; raised_by: string; due_date: string | null; created_at: string }[]>(
-      `/api/audit/findings?quarter_id=${quarterId}`
-    ),
-    gwJson<{ id: string; item: string; category: string; done: boolean; notes: string | null; completed_by: string | null; completed_at: string | null; sort_order: number }[]>(
-      `/api/audit/vigilanza?quarter_id=${quarterId}`
-    ),
-    gwJson<{ id: string; filename: string; period_label: string; row_count: number | null; doc_type: string; created_at: string }[]>(
-      `/api/accounting/imports?quarter_id=${quarterId}`
-    ),
-    gwJson<{ id: string; title: string; type: string; status: string; created_at: string }[]>(
-      `/api/drafts?quarter_id=${quarterId}`
-    ),
+    gwJson<{ category_slug: string; is_na: boolean }[]>(`/api/assignments/${assignmentId}/category-flags`),
+    gwJson<{ id: string; year: number } | null>(`/api/assignments/${assignmentId}/previous`),
   ]);
 
   if (!quarter) redirect(`/incarichi/${assignmentId}`);
@@ -71,6 +54,25 @@ export default async function QuarterDetailPage({
   const assignmentCompanyName = assignment?.company_name ?? fallbackCompany?.name ?? "—";
   const canEdit = me ? ["tenant_owner", "revisor"].includes(me.profile.role) : false;
   const s = STATUS_LABELS[quarter.status] ?? STATUS_LABELS.aperto!;
+
+  // Group quarter docs by ASSIGNMENT_CATEGORIES slugs for the checklist
+  const docsByCategory: Record<string, DocItem[]> = {};
+  for (const cat of ASSIGNMENT_CATEGORIES) {
+    docsByCategory[cat.slug] = [];
+  }
+  for (const doc of documents ?? []) {
+    if (docsByCategory[doc.category] !== undefined) {
+      docsByCategory[doc.category]!.push({
+        id: doc.id,
+        name: doc.name,
+        file_size: doc.file_size,
+        mime_type: doc.mime_type,
+        category: doc.category,
+        created_at: doc.created_at,
+      });
+    }
+  }
+  const naSlugs = (categoryFlags ?? []).filter((f) => f.is_na).map((f) => f.category_slug);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -94,59 +96,15 @@ export default async function QuarterDetailPage({
         )}
       </div>
 
-      <QuarterStatusForm
+      <AssignmentChecklist
+        assignmentId={assignmentId}
         quarterId={quarterId}
-        currentStatus={quarter.status}
-        currentNotes={quarter.notes ?? ''}
         canEdit={canEdit}
+        initialDocsByCategory={docsByCategory}
+        initialNaSlugs={naSlugs}
+        previousAssignmentId={previousAssignment?.id ?? null}
       />
 
-      <ImportSection
-        quarterId={quarterId}
-        assignmentId={assignmentId}
-        initialImports={accountingImports ?? []}
-        uploaderNames={{}}
-        canUpload={canEdit}
-      />
-
-      <DocumentiSection
-        quarterId={quarterId}
-        initialDocuments={documents ?? []}
-        uploaderNames={{}}
-        canUpload={canEdit}
-        currentUserId={me?.user.id ?? ""}
-        isOwnerOrRevisor={canEdit}
-      />
-
-      <CarteSection
-        quarterId={quarterId}
-        assignmentId={assignmentId}
-        initialPapers={papers ?? []}
-        preparerNames={{}}
-        currentUserId={me?.user.id ?? ""}
-        canEdit={canEdit}
-      />
-
-      <RilieviSection
-        quarterId={quarterId}
-        assignmentId={assignmentId}
-        initialFindings={findings ?? []}
-        raisedByNames={{}}
-      />
-
-      <VigilanzaSection
-        quarterId={quarterId}
-        initialItems={vigilanzaItems ?? []}
-        completedByNames={{}}
-      />
-
-      <VerbaliSection
-        quarterId={quarterId}
-        assignmentId={assignmentId}
-        quarterLabel={QUARTER_LABELS[quarter.quarter] ?? ""}
-        initialDrafts={quarterDrafts ?? []}
-        canCreate={canEdit}
-      />
     </div>
   );
 }

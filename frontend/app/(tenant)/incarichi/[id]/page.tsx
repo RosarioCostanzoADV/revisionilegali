@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { gwJson } from "@/lib/api";
-import { ModificaIncaricoForm } from "./ModificaIncaricoForm";
-import { BozzeSection } from "./BozzeSection";
+import { AssignmentDocumentRepository, type RepoDoc } from "./AssignmentDocumentRepository";
 import type { MeResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -19,15 +18,19 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   chiuso:   { label: "Chiuso",   className: "bg-gray-100 text-gray-500" },
 };
 
-const ROLE_LABELS: Record<string, string> = {
-  tenant_owner: "Titolare",
-  revisor: "Revisore",
-  collaborator: "Collaboratore",
-  syndic: "Sindaco",
+const QUARTER_STATUS: Record<string, string> = {
+  aperto: "bg-blue-100 text-blue-700",
+  in_corso: "bg-yellow-100 text-yellow-700",
+  chiuso: "bg-gray-100 text-gray-500",
 };
 
 const QUARTER_LABELS: Record<number, string> = {
-  1: "1° Trimestre", 2: "2° Trimestre", 3: "3° Trimestre", 4: "4° Trimestre",
+  1: "1° Trim.", 2: "2° Trim.", 3: "3° Trim.", 4: "4° Trim.",
+};
+
+type QuarterDoc = {
+  id: string; name: string; file_size: number | null;
+  mime_type: string | null; category: string; created_at: string;
 };
 
 export default async function IncaricoDetailPage({
@@ -37,21 +40,14 @@ export default async function IncaricoDetailPage({
 }) {
   const { id } = await params;
 
-  const [me, assignment, quarters, drafts, allUsers] = await Promise.all([
+  const [me, assignment, quarters] = await Promise.all([
     gwJson<MeResponse>("/api/auth/me"),
     gwJson<{
       id: string; year: number; type: string; status: string; notes?: string;
       company_id?: string; company_name?: string; company_fiscal_code?: string;
-      company_city?: string; member_ids?: string[];
       members?: { id: string; full_name: string; role: string }[];
     }>(`/api/assignments/${id}`),
-    gwJson<{ id: string; quarter: number; status: string }[]>(
-      `/api/assignments/${id}/quarters`
-    ),
-    gwJson<{ id: string; title: string; type: string; status: string; updated_at: string }[]>(
-      `/api/drafts?assignment_id=${id}`
-    ),
-    gwJson<{ id: string; full_name: string; role: string }[]>("/api/auth/users"),
+    gwJson<{ id: string; quarter: number; status: string }[]>(`/api/assignments/${id}/quarters`),
   ]);
 
   if (!assignment) notFound();
@@ -59,109 +55,111 @@ export default async function IncaricoDetailPage({
   const fallbackCompany = !assignment.company_name && assignment.company_id
     ? await gwJson<{ name?: string }>(`/api/companies/${assignment.company_id}`)
     : null;
-  const assignmentCompanyName = assignment.company_name ?? fallbackCompany?.name ?? "—";
+  const companyName = assignment.company_name ?? fallbackCompany?.name ?? "—";
 
-  const canEdit = me ? ["tenant_owner", "revisor"].includes(me.profile.role) : false;
+  // Fetch all documents from all quarters in parallel
+  const allQuarterDocsArrays = (quarters ?? []).length > 0
+    ? await Promise.all(
+        (quarters ?? []).map((q) =>
+          gwJson<QuarterDoc[]>(`/api/documents?quarter_id=${q.id}`)
+        )
+      )
+    : [];
+
+  const repoDocsByCategory: Record<string, RepoDoc[]> = {};
+  for (let i = 0; i < (quarters ?? []).length; i++) {
+    const q = (quarters ?? [])[i];
+    if (!q) continue;
+    for (const doc of allQuarterDocsArrays[i] ?? []) {
+      const slug = doc.category;
+      if (!repoDocsByCategory[slug]) repoDocsByCategory[slug] = [];
+      repoDocsByCategory[slug].push({
+        id: doc.id,
+        name: doc.name,
+        file_size: doc.file_size,
+        mime_type: doc.mime_type,
+        category: slug,
+        created_at: doc.created_at,
+        quarter_number: q.quarter,
+      });
+    }
+  }
+
   const s = STATUS_LABELS[assignment.status] ?? STATUS_LABELS.aperto!;
-  const memberIds = assignment.member_ids ?? (assignment.members ?? []).map((m) => m.id);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <Link href="/incarichi" className="text-sm text-brand-600 hover:text-brand-700">← Tutti gli incarichi</Link>
-        <div className="mt-2 flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {assignmentCompanyName} — {assignment.year}
-          </h1>
-          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${s.className}`}>{s.label}</span>
-        </div>
-        <p className="mt-1 text-sm text-gray-500">{TYPE_LABELS[assignment.type] ?? assignment.type}</p>
-      </div>
+    <div className="mx-auto max-w-5xl space-y-5">
 
-      {/* Trimestri */}
-      <div className="rounded-lg border border-gray-200 bg-white p-5">
-        <h2 className="mb-4 text-sm font-semibold text-gray-700">Trimestri</h2>
-        {!(quarters ?? []).length ? (
-          <p className="text-sm text-gray-400">Nessun trimestre disponibile.</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {(quarters ?? []).map((q) => {
-              const qs = STATUS_LABELS[q.status] ?? STATUS_LABELS.aperto!;
-              return (
+      {/* Breadcrumb */}
+      <Link href="/incarichi" className="inline-flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700">
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+        </svg>
+        Tutti gli incarichi
+      </Link>
+
+      {/* Assignment header */}
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-xl font-bold text-gray-900">
+                {assignment.company_id ? (
+                  <Link href={`/aziende/${assignment.company_id}`} className="hover:text-brand-600 transition-colors">
+                    {companyName}
+                  </Link>
+                ) : companyName}
+                {" — "}{assignment.year}
+              </h1>
+              <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${s.className}`}>
+                {s.label}
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-gray-500">{TYPE_LABELS[assignment.type] ?? assignment.type}</p>
+            {assignment.notes && (
+              <p className="mt-2 text-xs text-gray-400 whitespace-pre-wrap">{assignment.notes}</p>
+            )}
+          </div>
+
+          {/* Team chips */}
+          {(assignment.members ?? []).length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {(assignment.members ?? []).map((m) => (
+                <span
+                  key={m.id}
+                  title={m.full_name}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-brand-100 text-[10px] font-bold text-brand-700"
+                >
+                  {(m.full_name ?? "?")[0]?.toUpperCase()}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Quarters nav */}
+        {(quarters ?? []).length > 0 && (
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <p className="mb-2 text-xs font-medium text-gray-400 uppercase tracking-wide">Trimestri</p>
+            <div className="flex flex-wrap gap-2">
+              {(quarters ?? []).map((q) => (
                 <Link
                   key={q.id}
                   href={`/incarichi/${id}/trimestri/${q.id}`}
-                  className="flex flex-col gap-2 rounded-lg border border-gray-200 p-4 hover:border-brand-300 hover:bg-brand-50 transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 transition-colors"
                 >
-                  <span className="text-sm font-semibold text-gray-900">{QUARTER_LABELS[q.quarter]}</span>
-                  <span className={`inline-flex self-start rounded-full px-2 py-0.5 text-xs font-medium ${qs.className}`}>{qs.label}</span>
+                  {QUARTER_LABELS[q.quarter] ?? `T${q.quarter}`}
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${QUARTER_STATUS[q.status] ?? QUARTER_STATUS.aperto}`}>
+                    {q.status === "aperto" ? "Aperto" : q.status === "in_corso" ? "In corso" : "Chiuso"}
+                  </span>
                 </Link>
-              );
-            })}
+              ))}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Dettagli */}
-      <div className="rounded-lg border border-gray-200 bg-white p-5 space-y-3">
-        <h2 className="text-sm font-semibold text-gray-700">Dettagli</h2>
-        <dl className="grid gap-3 sm:grid-cols-2 text-sm">
-          <div>
-            <dt className="text-gray-500">Azienda</dt>
-            <dd className="mt-0.5 font-medium text-gray-900">
-              {assignment.company_id ? (
-                <Link href={`/aziende/${assignment.company_id}`} className="text-brand-600 hover:text-brand-700">
-                  {assignmentCompanyName}
-                </Link>
-              ) : "—"}
-            </dd>
-          </div>
-          {assignment.company_fiscal_code && (
-            <div><dt className="text-gray-500">Codice fiscale</dt><dd className="mt-0.5 font-medium text-gray-900">{assignment.company_fiscal_code}</dd></div>
-          )}
-          {assignment.company_city && (
-            <div><dt className="text-gray-500">Città</dt><dd className="mt-0.5 font-medium text-gray-900">{assignment.company_city}</dd></div>
-          )}
-          <div><dt className="text-gray-500">Anno</dt><dd className="mt-0.5 font-medium text-gray-900">{assignment.year}</dd></div>
-          <div><dt className="text-gray-500">Tipo</dt><dd className="mt-0.5 font-medium text-gray-900">{TYPE_LABELS[assignment.type] ?? assignment.type}</dd></div>
-        </dl>
-        {assignment.notes && (
-          <div className="pt-2 border-t border-gray-100">
-            <p className="text-xs text-gray-500 mb-1">Note</p>
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">{assignment.notes}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Team */}
-      {(assignment.members ?? []).length > 0 && (
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
-          <h2 className="mb-3 text-sm font-semibold text-gray-700">Team assegnato</h2>
-          <ul className="space-y-2">
-            {(assignment.members ?? []).map((p) => (
-              <li key={p.id} className="flex items-center gap-3 text-sm">
-                <span className="h-7 w-7 rounded-full bg-brand-100 flex items-center justify-center text-xs font-medium text-brand-700">
-                  {(p.full_name ?? "?")[0]?.toUpperCase()}
-                </span>
-                <span className="font-medium text-gray-900">{p.full_name ?? "—"}</span>
-                <span className="text-gray-400">{ROLE_LABELS[p.role] ?? p.role}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <BozzeSection assignmentId={id} initialDrafts={drafts ?? []} canCreate={canEdit} />
-
-      {canEdit && (
-        <ModificaIncaricoForm
-          assignmentId={id}
-          currentStatus={assignment.status}
-          currentMemberIds={memberIds}
-          allUsers={allUsers ?? []}
-          notes={assignment.notes ?? null}
-        />
-      )}
+      <AssignmentDocumentRepository docsByCategory={repoDocsByCategory} />
     </div>
   );
 }

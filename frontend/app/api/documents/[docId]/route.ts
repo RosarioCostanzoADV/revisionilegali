@@ -3,11 +3,14 @@ import { proxyTo } from "../../_proxy";
 
 type Ctx = { params: Promise<{ docId: string }> };
 
-/** GET /api/documents/:docId — restituisce { url } per il download. */
 export async function GET(_req: NextRequest, ctx: Ctx) {
   const { docId } = await ctx.params;
-  const url = `/api/documents/${docId}/download`;
-  return Response.json({ url });
+  return Response.json({ url: `/api/documents/${docId}/download` });
+}
+
+export async function PATCH(req: NextRequest, ctx: Ctx) {
+  const { docId } = await ctx.params;
+  return proxyTo(req, `/api/documents/${docId}`);
 }
 
 export async function DELETE(req: NextRequest, ctx: Ctx) {
