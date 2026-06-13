@@ -33,13 +33,16 @@ export default async function QuarterDetailPage({
 }) {
   const { id: assignmentId, quarterId } = await params;
 
-  const [me, quarter, documents, papers, findings, vigilanzaItems, accountingImports, quarterDrafts] = await Promise.all([
+  const [me, quarter, assignment, documents, papers, findings, vigilanzaItems, accountingImports, quarterDrafts] = await Promise.all([
     gwJson<MeResponse>("/api/auth/me"),
     gwJson<{
       id: string; quarter: number; status: string; notes?: string;
       closed_at?: string; assignment_id: string;
-      assignment?: { id: string; year: number; type: string; company_id?: string; company_name?: string };
     }>(`/api/quarters/${quarterId}`),
+    gwJson<{
+      id: string; year: number; type: string; status: string;
+      company_id?: string; company_name?: string;
+    }>(`/api/assignments/${assignmentId}`),
     gwJson<{ id: string; name: string; file_path: string; file_size: number | null; mime_type: string | null; category: string; notes: string | null; created_at: string; uploaded_by: string }[]>(
       `/api/documents?quarter_id=${quarterId}`
     ),
@@ -62,8 +65,7 @@ export default async function QuarterDetailPage({
 
   if (!quarter) redirect(`/incarichi/${assignmentId}`);
 
-  const assignment = quarter.assignment;
-  const fallbackCompany = assignment && !assignment.company_name && assignment.company_id
+  const fallbackCompany = !assignment?.company_name && assignment?.company_id
     ? await gwJson<{ name?: string }>(`/api/companies/${assignment.company_id}`)
     : null;
   const assignmentCompanyName = assignment?.company_name ?? fallbackCompany?.name ?? "—";

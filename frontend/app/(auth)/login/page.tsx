@@ -20,15 +20,24 @@ export default async function LoginPage({
           : null;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-7">
+
+      {/* Heading */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Accedi</h2>
+        <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-teal-600">
+          Accesso
+        </p>
+        <h2 className="text-2xl font-bold text-gray-900">Bentornato</h2>
         <p className="mt-1 text-sm text-gray-500">
           Inserisci le tue credenziali per accedere al tuo studio.
         </p>
       </div>
+
+      {/* Form */}
       <LoginForm initialError={errorMessage} redirectTo={sp.redirectTo} />
-      <div className="flex items-center justify-between text-sm">
+
+      {/* Links */}
+      <div className="text-center text-sm">
         <Link
           href="/reset-password"
           className="text-brand-600 hover:text-brand-700 hover:underline"
@@ -36,6 +45,7 @@ export default async function LoginPage({
           Password dimenticata?
         </Link>
       </div>
+
     </div>
   );
 }

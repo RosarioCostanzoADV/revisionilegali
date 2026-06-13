@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { gwJson } from "@/lib/api";
 import { LogoutButton } from "@/components/LogoutButton";
+import { NavLinks } from "@/components/NavLinks";
 import type { MeResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -22,47 +23,48 @@ export default async function TenantLayout({
   const profile = me.profile;
   const tenant = me.tenant;
 
+  const initials =
+    profile.full_name
+      ?.split(" ")
+      .map((n: string) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) ?? "?";
+
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="h-1 bg-gradient-to-r from-brand-600 via-brand-500 to-brand-400" />
-      <header className="border-b border-gray-200 bg-white shadow-sm">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-brand-600 text-xs font-bold text-white">
-                RL
-              </span>
-              <span className="text-sm font-semibold text-gray-800">Revisioni Legali</span>
-            </Link>
+      <header className="sticky top-0 z-50 border-b border-gray-200/70 bg-white/95 backdrop-blur-md shadow-[0_1px_4px_0_rgb(0_0_0/0.06)]">
+        <div className="h-0.5 bg-gradient-to-r from-brand-700 via-brand-500 to-brand-400" />
+        <div className="mx-auto flex h-13 max-w-6xl items-center justify-between gap-4 px-4 py-2.5">
+
+          {/* Logo */}
+          <Link href="/dashboard" className="flex shrink-0 items-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="Revisio" className="h-8 w-auto object-contain" />
+          </Link>
+
+          {/* Nav centrale */}
+          <NavLinks />
+
+          {/* Studio + avatar + logout */}
+          <div className="flex shrink-0 items-center gap-1">
             {tenant?.name && (
-              <span className="hidden items-center gap-1 text-xs text-gray-400 sm:flex">
-                <span className="text-gray-300">·</span>
+              <span className="hidden max-w-[180px] truncate text-xs font-medium text-gray-500 sm:block mr-2">
                 {tenant.name}
               </span>
             )}
-          </div>
-          <nav className="flex items-center gap-1 text-sm">
-            {[
-              { href: "/dashboard", label: "Dashboard" },
-              { href: "/aziende",   label: "Aziende" },
-              { href: "/incarichi", label: "Incarichi" },
-              { href: "/settings",  label: "Impostazioni" },
-            ].map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className="rounded-md px-3 py-1.5 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
-              >
-                {label}
-              </Link>
-            ))}
-          </nav>
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Link href="/profilo" className="hover:text-gray-900">
-              {profile.full_name ?? "Profilo"}
+            <Link
+              href="/profilo"
+              title={profile.full_name ?? "Profilo"}
+              className="flex items-center justify-center rounded-full transition-opacity hover:opacity-80"
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 text-[10px] font-bold text-brand-700">
+                {initials}
+              </span>
             </Link>
             <LogoutButton variant="ghost" />
           </div>
+
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
