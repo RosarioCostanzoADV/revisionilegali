@@ -40,7 +40,7 @@ export default async function IncaricoDetailPage({
 }) {
   const { id } = await params;
 
-  const [me, assignment, quarters] = await Promise.all([
+  const [, assignment, quarters] = await Promise.all([
     gwJson<MeResponse>("/api/auth/me"),
     gwJson<{
       id: string; year: number; type: string; status: string; notes?: string;

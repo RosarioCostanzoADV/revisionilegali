@@ -112,7 +112,7 @@ export function ImportPreviousModal({
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <div>
             <h3 className="font-semibold text-gray-900">Importa da anno precedente</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Seleziona i documenti da copiare nell'incarico corrente.</p>
+            <p className="text-xs text-gray-500 mt-0.5">Seleziona i documenti da copiare nell&apos;incarico corrente.</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -129,7 +129,7 @@ export function ImportPreviousModal({
             <div className="py-6 text-center text-sm text-red-500">{error}</div>
           ) : docs.length === 0 ? (
             <div className="py-10 text-center text-sm text-gray-400">
-              Nessun documento trovato in questa categoria nell'anno precedente.
+              Nessun documento trovato in questa categoria nell&apos;anno precedente.
             </div>
           ) : (
             <div className="space-y-1">

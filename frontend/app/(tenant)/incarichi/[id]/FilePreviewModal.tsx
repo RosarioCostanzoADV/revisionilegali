@@ -84,7 +84,7 @@ export function FilePreviewModal({ doc, onClose }: FilePreviewModalProps) {
             <div>
               <p className="text-sm text-gray-300 font-medium">Anteprima non disponibile</p>
               <p className="mt-1 text-xs text-gray-500">
-                Questo formato non supporta l'anteprima nel browser.
+                Questo formato non supporta l&apos;anteprima nel browser.
               </p>
             </div>
             <a
