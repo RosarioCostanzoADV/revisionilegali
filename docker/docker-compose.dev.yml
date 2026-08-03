@@ -1,0 +1,32 @@
+# Override per lo SVILUPPO LOCALE.
+#
+# Fa girare il frontend in modalità `next dev` con il sorgente montato dall'host,
+# come già fanno tutti i servizi backend. Le modifiche al codice si vedono subito:
+# non serve più ricostruire l'immagine per vedere il proprio lavoro.
+#
+# NON viene caricato in produzione: il deploy esegue `docker compose up -d --build`
+# senza -f, quindi legge solo docker-compose.yml e builda lo stage "runner"
+# (Next.js standalone). Per questo il file NON si chiama docker-compose.override.yml,
+# che invece Compose caricherebbe da solo anche sul server.
+#
+# Uso:  docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+# (oppure semplicemente ./start_sw.sh, che lo passa già)
+
+services:
+  frontend:
+    build:
+      target: dev
+    environment:
+      - NODE_ENV=development
+      # Docker su macOS non propaga gli eventi inotify attraverso i bind mount:
+      # senza polling Next.js non si accorge delle modifiche ai file.
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      # Il sorgente vive sull'host; il container lo legge in diretta.
+      - ../frontend:/app
+      # Volumi anonimi: preservano node_modules e la cache .next dell'immagine
+      # impedendo al bind mount qui sopra di sovrascriverli con quelli dell'host
+      # (che sono compilati per macOS, non per Alpine Linux).
+      - /app/node_modules
+      - /app/.next

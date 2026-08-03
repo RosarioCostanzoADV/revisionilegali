@@ -29,7 +29,7 @@ const getAssignment = async (req, res) => {
             where: { id: req.params.id, tenant_id: req.user.tenant_id },
             include: [
                 { model: AssignmentMember, as: 'members', attributes: ['id', 'user_id', 'role'] },
-                { model: Quarter, as: 'quarters', attributes: ['id', 'quarter', 'status', 'notes', 'closed_at', 'created_at'], order: [['quarter', 'ASC']] }
+                { model: Quarter, as: 'quarters', attributes: ['id', 'quarter', 'status', 'notes', 'closed_at', 'created_at', 'bilancio_skipped'], order: [['quarter', 'ASC']] }
             ]
         });
         if (!assignment) return res.status(404).json({ error: 'Incarico non trovato' });
@@ -144,7 +144,7 @@ const listQuarters = async (req, res) => {
 
         const quarters = await Quarter.findAll({
             where: { assignment_id: req.params.id },
-            attributes: ['id', 'quarter', 'status', 'notes', 'closed_at', 'created_at'],
+            attributes: ['id', 'quarter', 'status', 'notes', 'closed_at', 'created_at', 'bilancio_skipped'],
             order: [['quarter', 'ASC']]
         });
         return res.json(quarters);

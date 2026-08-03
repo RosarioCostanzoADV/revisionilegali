@@ -3,13 +3,28 @@
 import { useState } from "react";
 import { ASSIGNMENT_CATEGORIES } from "@/lib/assignment-categories";
 
+// Etichette per slug non più presenti tra le categorie correnti (documenti storici).
 const EXTRA_CATEGORY_LABELS: Record<string, string> = {
-  bilancio: "Bilancio",
   estratto_conto: "Estratto conto",
   contratto: "Contratto",
   fattura: "Fattura / Nota spese",
   verbale: "Verbale",
   relazione: "Relazione",
+  altro: "Altro",
+  // Slug del vecchio modello di revisione trimestre (compatibilità storica).
+  documenti_societari: "Documenti Societari",
+  bilancio_contabilita: "Bilancio e Contabilità",
+  schede_clienti_fornitori: "Schede Clienti e Fornitori",
+  dichiarazione_iva: "Dichiarazione IVA",
+  liquidazione_iva: "Liquidazione IVA",
+  credito_iva: "Credito IVA",
+  f24_erario: "F24 e Versamenti Erario",
+  versamenti_inps: "Versamenti INPS",
+  addizionali: "Addizionali Comunali e Regionali",
+  estratti_conto: "Estratti Conto e Carte",
+  lul_buste_paga: "LUL e Buste Paga",
+  cespiti: "Registro Cespiti",
+  contratti_significativi: "Contratti Significativi",
 };
 
 const QUARTER_LABELS: Record<number, string> = {

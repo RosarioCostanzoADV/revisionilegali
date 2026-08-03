@@ -33,7 +33,7 @@ export default async function QuarterDetailPage({
     gwJson<MeResponse>("/api/auth/me"),
     gwJson<{
       id: string; quarter: number; status: string; notes?: string;
-      closed_at?: string; assignment_id: string;
+      closed_at?: string; assignment_id: string; bilancio_skipped?: boolean;
     }>(`/api/quarters/${quarterId}`),
     gwJson<{
       id: string; year: number; type: string; status: string;
@@ -90,6 +90,11 @@ export default async function QuarterDetailPage({
         <div className="mt-2 flex items-center gap-3">
           <h1 className="text-2xl font-bold text-gray-900">{QUARTER_LABELS[quarter.quarter]}</h1>
           <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${s.className}`}>{s.label}</span>
+          {quarter.bilancio_skipped && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-700">
+              ⚠ Bilancio non caricato
+            </span>
+          )}
         </div>
         {assignment && (
           <p className="mt-1 text-sm text-gray-500">{TYPE_LABELS[assignment.type] ?? assignment.type}</p>
@@ -103,6 +108,7 @@ export default async function QuarterDetailPage({
         initialDocsByCategory={docsByCategory}
         initialNaSlugs={naSlugs}
         previousAssignmentId={previousAssignment?.id ?? null}
+        initialBilancioSkipped={quarter.bilancio_skipped ?? false}
       />
 
     </div>

@@ -41,6 +41,11 @@ module.exports = (sequelize, DataTypes) => {
         closed_at: {
             type: DataTypes.DATE,
             allowNull: true
+        },
+        bilancio_skipped: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false
         }
     }, {
         sequelize,

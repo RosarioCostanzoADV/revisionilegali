@@ -10,7 +10,7 @@ const getQuarter = async (req, res) => {
     try {
         const quarter = await Quarter.findOne({
             where: { id: req.params.id, tenant_id: req.user.tenant_id },
-            attributes: ['id', 'quarter', 'status', 'notes', 'closed_at', 'created_at', 'assignment_id']
+            attributes: ['id', 'quarter', 'status', 'notes', 'closed_at', 'created_at', 'assignment_id', 'bilancio_skipped']
         });
         if (!quarter) return res.status(404).json({ error: 'Trimestre non trovato' });
         return res.json(quarter);
@@ -32,7 +32,7 @@ const updateQuarter = async (req, res) => {
         });
         if (!quarter) return res.status(404).json({ error: 'Trimestre non trovato' });
 
-        const { status, notes } = req.body;
+        const { status, notes, bilancio_skipped } = req.body;
         const updates = {};
 
         if (status !== undefined) {
@@ -49,6 +49,13 @@ const updateQuarter = async (req, res) => {
         }
 
         if (notes !== undefined) updates.notes = notes;
+
+        if (bilancio_skipped !== undefined) {
+            if (typeof bilancio_skipped !== 'boolean') {
+                return res.status(400).json({ error: 'bilancio_skipped deve essere boolean' });
+            }
+            updates.bilancio_skipped = bilancio_skipped;
+        }
 
         await quarter.update(updates);
         return res.json({ ok: true });

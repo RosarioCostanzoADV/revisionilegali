@@ -1,18 +1,11 @@
 export type CategorySlug =
-  | "documenti_societari"
-  | "bilancio_contabilita"
-  | "schede_clienti_fornitori"
-  | "dichiarazione_iva"
-  | "liquidazione_iva"
-  | "credito_iva"
-  | "f24_erario"
-  | "versamenti_inps"
-  | "addizionali"
-  | "estratti_conto"
-  | "lul_buste_paga"
-  | "cespiti"
-  | "contratti_significativi"
-  | "altro";
+  | "bilancio"
+  | "registro_fatture_acquisto"
+  | "registro_fatture_vendita"
+  | "mastrini"
+  | "libro_giornale"
+  | "f24_registri_iva"
+  | "inventario_annuale";
 
 export interface CategoryDef {
   slug: CategorySlug;
@@ -24,137 +17,94 @@ export interface CategoryDef {
   isCompanyLinked: boolean;
   /** Se true, la categoria deve essere soddisfatta (o flaggata N/A se canBeNA) per sbloccare la revisione AI. */
   required: boolean;
+  /**
+   * True SOLO per il Bilancio trimestrale: è il file che va caricato PRIMA di
+   * qualsiasi altra operazione e che sblocca il caricamento dei file a corredo.
+   */
+  isBilancio: boolean;
 }
+
+/** Slug del Bilancio: unica categoria da caricare per prima. */
+export const BILANCIO_SLUG: CategorySlug = "bilancio";
 
 export const ASSIGNMENT_CATEGORIES: CategoryDef[] = [
   {
-    slug: "documenti_societari",
-    label: "Documenti Societari",
+    slug: "bilancio",
+    label: "Bilancio trimestrale",
     description:
-      "Statuto, visura camerale, atto costitutivo, libro soci, verbali assemblee e CDA, documenti d'identità di amministratori e sindaci.",
-    canBeNA: false,
-    isCompanyLinked: true,
-    required: true,
-  },
-  {
-    slug: "bilancio_contabilita",
-    label: "Bilancio e Contabilità",
-    description:
-      "Bilancio di esercizio (stato patrimoniale, conto economico, nota integrativa), bilancio di verifica, libro giornale e libro degli inventari.",
+      "Bilancio di verifica del trimestre (stato patrimoniale e conto economico). È il punto di partenza della revisione: va caricato per primo, prima di ogni altro documento.",
     canBeNA: false,
     isCompanyLinked: false,
     required: true,
+    isBilancio: true,
   },
   {
-    slug: "schede_clienti_fornitori",
-    label: "Schede Clienti e Fornitori",
+    slug: "registro_fatture_acquisto",
+    label: "Registro fatture di acquisto",
     description:
-      "Schede analitiche movimenti di clienti e fornitori, bilancio totale, riconciliazione partite aperte ed estratti di posizione.",
+      "Registro IVA delle fatture di acquisto del periodo, per il riscontro dei costi e dei debiti verso fornitori con il bilancio.",
     canBeNA: false,
     isCompanyLinked: false,
     required: true,
+    isBilancio: false,
   },
   {
-    slug: "dichiarazione_iva",
-    label: "Dichiarazione IVA",
+    slug: "registro_fatture_vendita",
+    label: "Registro fatture di vendita",
     description:
-      "Dichiarazione IVA annuale, comunicazioni LiPe (liquidazioni periodiche IVA), registri IVA acquisti e vendite.",
+      "Registro IVA delle fatture di vendita del periodo, per il riscontro dei ricavi e dei crediti verso clienti con il bilancio.",
     canBeNA: false,
     isCompanyLinked: false,
     required: true,
+    isBilancio: false,
   },
   {
-    slug: "liquidazione_iva",
-    label: "Liquidazione IVA",
+    slug: "mastrini",
+    label: "Tutti i mastrini",
     description:
-      "Prospetti di liquidazione IVA periodica (mensile o trimestrale) con relativi F24 per il versamento dell'IVA.",
+      "Schede contabili (mastrini) di tutti i conti, per la riconciliazione di dettaglio delle voci di bilancio.",
     canBeNA: false,
     isCompanyLinked: false,
     required: true,
+    isBilancio: false,
   },
   {
-    slug: "f24_erario",
-    label: "F24 e Versamenti Erario",
+    slug: "libro_giornale",
+    label: "Libri Giornale",
     description:
-      "Modelli F24, ricevute pagamento imposte dirette, ritenute d'acconto operate (mod. 770) e altri tributi erariali.",
+      "Libro giornale del periodo con la registrazione cronologica delle scritture contabili.",
     canBeNA: false,
     isCompanyLinked: false,
     required: true,
+    isBilancio: false,
   },
   {
-    slug: "estratti_conto",
-    label: "Estratti Conto e Carte",
+    slug: "f24_registri_iva",
+    label: "F24 e registri IVA",
     description:
-      "Estratti conto corrente bancari, estratti carte di credito e debito aziendali, riconciliazioni bancarie di fine periodo.",
+      "Modelli F24 di versamento e registri/liquidazioni IVA del periodo, per il riscontro dei debiti tributari.",
     canBeNA: false,
     isCompanyLinked: false,
     required: true,
+    isBilancio: false,
   },
   {
-    slug: "credito_iva",
-    label: "Credito IVA",
+    slug: "inventario_annuale",
+    label: "Inventario Annuale",
     description:
-      "Documentazione relativa al credito IVA maturato, istanze di rimborso presentate e compensazioni effettuate tramite F24.",
+      "Libro degli inventari annuale (clienti, fornitori, beni ammortizzabili, fondi). Se non ancora disponibile per il trimestre può essere segnato come non applicabile.",
     canBeNA: true,
     isCompanyLinked: false,
     required: true,
-  },
-  {
-    slug: "versamenti_inps",
-    label: "Versamenti INPS",
-    description:
-      "DM10/Uniemens, ricevute versamenti INPS, prospetti contributi previdenziali per dipendenti e collaboratori.",
-    canBeNA: true,
-    isCompanyLinked: false,
-    required: true,
-  },
-  {
-    slug: "addizionali",
-    label: "Addizionali Comunali e Regionali",
-    description:
-      "Modelli F24 relativi al versamento delle addizionali comunali e regionali IRPEF con prospetti di calcolo.",
-    canBeNA: true,
-    isCompanyLinked: false,
-    required: true,
-  },
-  {
-    slug: "lul_buste_paga",
-    label: "LUL e Buste Paga",
-    description:
-      "Libro Unico del Lavoro (LUL), buste paga dei dipendenti, Certificazioni Uniche (CU) e modello 770.",
-    canBeNA: true,
-    isCompanyLinked: false,
-    required: true,
-  },
-  {
-    slug: "cespiti",
-    label: "Registro Cespiti",
-    description:
-      "Registro beni ammortizzabili aggiornato, perizie di stima, contratti leasing e noleggio, schede analitiche cespiti.",
-    canBeNA: true,
-    isCompanyLinked: false,
-    required: true,
-  },
-  {
-    slug: "contratti_significativi",
-    label: "Contratti Significativi",
-    description:
-      "Contratti di affitto, mutui, finanziamenti, fideiussioni, contratti di agenzia e accordi commerciali rilevanti.",
-    canBeNA: true,
-    isCompanyLinked: false,
-    required: true,
-  },
-  {
-    slug: "altro",
-    label: "Altro",
-    description:
-      "Documentazione aggiuntiva non classificata nelle categorie precedenti, utile ai fini della revisione.",
-    canBeNA: true,
-    isCompanyLinked: false,
-    required: false,
+    isBilancio: false,
   },
 ];
 
 export function getCategoryBySlug(slug: string): CategoryDef | undefined {
   return ASSIGNMENT_CATEGORIES.find((c) => c.slug === slug);
+}
+
+/** Restituisce la categoria del Bilancio (sempre presente). */
+export function getBilancioCategory(): CategoryDef {
+  return ASSIGNMENT_CATEGORIES.find((c) => c.isBilancio)!;
 }

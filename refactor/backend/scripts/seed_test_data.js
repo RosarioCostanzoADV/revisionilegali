@@ -70,7 +70,7 @@ async function seedTenantDb() {
   try {
     // Plans
     await db.query(`
-      INSERT INTO plans (id, name, max_assignments, max_users, storage_gb, ai_quota, has_vigilanza, has_ai_drafts, has_advanced_import, created_at, updated_at)
+      INSERT INTO plans (id, name, max_assignments, max_users, storage_gb, ai_quota, vigilance_module, ai_drafts_module, advanced_import, created_at, updated_at)
       VALUES
         ($1, 'Small',  5,   3,   5,   100,  false, false, false, NOW(), NOW()),
         ($2, 'Medium', 25,  10,  25,  500,  true,  true,  false, NOW(), NOW()),
@@ -82,8 +82,8 @@ async function seedTenantDb() {
 
     // Tenant A
     await db.query(`
-      INSERT INTO tenants (id, name, plan_id, owner_email, slug, status, onboarding_completed, created_at, updated_at)
-      VALUES ($1, 'Studio A (test)', $2, 'tenantA@test.it', 'studio-a-test', 'active', true, NOW(), NOW())
+      INSERT INTO tenants (id, name, plan_id, status, onboarding_completed, created_at, updated_at)
+      VALUES ($1, 'Studio A (test)', $2, 'active', true, NOW(), NOW())
       ON CONFLICT (id) DO UPDATE
         SET name = EXCLUDED.name, status = EXCLUDED.status, updated_at = NOW()
     `, [IDS.tenantA, IDS.planMedium]);
@@ -91,8 +91,8 @@ async function seedTenantDb() {
 
     // Tenant B
     await db.query(`
-      INSERT INTO tenants (id, name, plan_id, owner_email, slug, status, onboarding_completed, created_at, updated_at)
-      VALUES ($1, 'Studio B (test)', $2, 'tenantB@test.it', 'studio-b-test', 'active', true, NOW(), NOW())
+      INSERT INTO tenants (id, name, plan_id, status, onboarding_completed, created_at, updated_at)
+      VALUES ($1, 'Studio B (test)', $2, 'active', true, NOW(), NOW())
       ON CONFLICT (id) DO UPDATE
         SET name = EXCLUDED.name, status = EXCLUDED.status, updated_at = NOW()
     `, [IDS.tenantB, IDS.planSmall]);

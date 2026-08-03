@@ -290,18 +290,25 @@ function keepHierarchyLeaves(entries) {
 
 // ── Parser PDF ────────────────────────────────────────────────────────────────
 
-async function parsePDF(buffer) {
+/**
+ * Estrae il testo di un PDF pagina per pagina (con fallback a testo unito).
+ * Restituisce sempre un array di stringhe (una per pagina).
+ */
+async function extractPagesText(buffer) {
   const { extractText } = await import('unpdf');
 
-  let pages = [];
   try {
     const perPage = await extractText(new Uint8Array(buffer), { mergePages: false });
     const raw = perPage.text;
-    pages = Array.isArray(raw) ? raw : [raw ?? ''];
+    return Array.isArray(raw) ? raw : [raw ?? ''];
   } catch {
     const merged = await extractText(new Uint8Array(buffer), { mergePages: true });
-    pages = [merged.text ?? ''];
+    return [merged.text ?? ''];
   }
+}
+
+async function parsePDF(buffer) {
+  const pages = await extractPagesText(buffer);
 
   const allEntries = [];
   for (const rawPageText of pages) {
@@ -314,4 +321,4 @@ async function parsePDF(buffer) {
   return keepHierarchyLeaves(allEntries);
 }
 
-module.exports = { parseCSV, parseSpreadsheet, parsePDF, parseNumber };
+module.exports = { parseCSV, parseSpreadsheet, parsePDF, parseNumber, extractPagesText };

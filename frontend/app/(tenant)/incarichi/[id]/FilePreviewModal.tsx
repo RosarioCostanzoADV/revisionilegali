@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 export interface PreviewDoc {
   id: string;
   name: string;
@@ -22,9 +24,31 @@ interface FilePreviewModalProps {
 }
 
 export function FilePreviewModal({ doc, onClose }: FilePreviewModalProps) {
-  const previewUrl = `/api/documents/${doc.id}/preview`;
   const downloadUrl = `/api/documents/${doc.id}/download`;
   const canPreview = canPreviewInBrowser(doc.mime_type);
+
+  // Carica il file come blob per evitare che il browser lo scarichi
+  // invece di mostrarlo inline (problema noto con iframe + PDF proxy)
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    if (!canPreview) return;
+    let url: string | null = null;
+    fetch(`/api/documents/${doc.id}/preview`)
+      .then((r) => {
+        if (!r.ok) throw new Error("fetch failed");
+        return r.blob();
+      })
+      .then((blob) => {
+        url = URL.createObjectURL(blob);
+        setBlobUrl(url);
+      })
+      .catch(() => setLoadError(true));
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [doc.id, canPreview]);
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-black/80" onClick={onClose}>
@@ -58,18 +82,30 @@ export function FilePreviewModal({ doc, onClose }: FilePreviewModalProps) {
       {/* Content */}
       <div className="flex-1 overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {canPreview ? (
-          doc.mime_type?.startsWith("image/") ? (
+          loadError ? (
+            <div className="flex h-full items-center justify-center">
+              <p className="text-sm text-gray-400">Impossibile caricare il file.</p>
+            </div>
+          ) : !blobUrl ? (
+            <div className="flex h-full items-center justify-center gap-3">
+              <svg className="h-5 w-5 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <span className="text-sm text-gray-400">Caricamento...</span>
+            </div>
+          ) : doc.mime_type?.startsWith("image/") ? (
             <div className="flex h-full items-center justify-center p-8">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={previewUrl}
+                src={blobUrl}
                 alt={doc.name}
                 className="max-h-full max-w-full object-contain rounded shadow-xl"
               />
             </div>
           ) : (
             <iframe
-              src={previewUrl}
+              src={blobUrl}
               className="h-full w-full border-0"
               title={doc.name}
             />

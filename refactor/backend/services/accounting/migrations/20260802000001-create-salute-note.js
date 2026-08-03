@@ -1,0 +1,59 @@
+'use strict';
+
+module.exports = {
+    async up(queryInterface, Sequelize) {
+        await queryInterface.createTable('salute_note', {
+            id: {
+                type: Sequelize.UUID,
+                defaultValue: Sequelize.literal('gen_random_uuid()'),
+                primaryKey: true,
+                allowNull: false
+            },
+            tenant_id: {
+                type: Sequelize.UUID,
+                allowNull: false
+            },
+            quarter_id: {
+                type: Sequelize.UUID,
+                allowNull: false
+            },
+            indicatore: {
+                type: Sequelize.STRING(100),
+                allowNull: false
+            },
+            nota: {
+                type: Sequelize.TEXT,
+                allowNull: true
+            },
+            esito: {
+                type: Sequelize.STRING(50),
+                allowNull: true
+            },
+            created_by: {
+                type: Sequelize.UUID,
+                allowNull: true
+            },
+            created_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('NOW()')
+            },
+            updated_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('NOW()')
+            }
+        });
+
+        await queryInterface.addIndex('salute_note', ['quarter_id'], { name: 'salute_note_quarter_idx' });
+        await queryInterface.addIndex('salute_note', ['tenant_id'], { name: 'salute_note_tenant_idx' });
+        await queryInterface.addIndex('salute_note', ['quarter_id', 'indicatore'], {
+            name: 'salute_note_quarter_indicatore_uniq',
+            unique: true
+        });
+    },
+
+    async down(queryInterface) {
+        await queryInterface.dropTable('salute_note');
+    }
+};

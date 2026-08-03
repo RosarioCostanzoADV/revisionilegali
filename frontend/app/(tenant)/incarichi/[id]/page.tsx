@@ -47,7 +47,7 @@ export default async function IncaricoDetailPage({
       company_id?: string; company_name?: string; company_fiscal_code?: string;
       members?: { id: string; full_name: string; role: string }[];
     }>(`/api/assignments/${id}`),
-    gwJson<{ id: string; quarter: number; status: string }[]>(`/api/assignments/${id}/quarters`),
+    gwJson<{ id: string; quarter: number; status: string; bilancio_skipped?: boolean }[]>(`/api/assignments/${id}/quarters`),
   ]);
 
   if (!assignment) notFound();
@@ -152,6 +152,14 @@ export default async function IncaricoDetailPage({
                   <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${QUARTER_STATUS[q.status] ?? QUARTER_STATUS.aperto}`}>
                     {q.status === "aperto" ? "Aperto" : q.status === "in_corso" ? "In corso" : "Chiuso"}
                   </span>
+                  {q.bilancio_skipped && (
+                    <span
+                      title="Bilancio non caricato per questo trimestre"
+                      className="rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-medium text-orange-700"
+                    >
+                      ⚠ senza bilancio
+                    </span>
+                  )}
                 </Link>
               ))}
             </div>

@@ -3,6 +3,20 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
+# Stage di sviluppo: il sorgente arriva via bind mount, next dev ricompila a caldo.
+# Usato solo da docker-compose.dev.yml; il deploy builda lo stage "runner".
+FROM node:20-alpine AS dev
+WORKDIR /app
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ARG NEXT_PUBLIC_GATEWAY_URL=http://localhost:8080
+ENV NEXT_PUBLIC_GATEWAY_URL=${NEXT_PUBLIC_GATEWAY_URL}
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+EXPOSE 3000
+CMD ["npm", "run", "dev", "--", "-H", "0.0.0.0", "-p", "3000"]
+
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules

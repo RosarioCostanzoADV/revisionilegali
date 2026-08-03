@@ -3,10 +3,12 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 DOCKER_DIR="$REPO_ROOT/docker"
-FRONTEND_DIR="$REPO_ROOT/frontend"
-FRONTEND_LOG="/tmp/revisionilegali-frontend.log"
 FRONTEND_PORT=3000
 GATEWAY_PORT=8080
+
+# Il frontend gira in container in modalità dev (hot-reload sul sorgente montato):
+# docker-compose.dev.yml sovrascrive lo stage di build e monta ../frontend in /app.
+COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.dev.yml)
 
 # ── colori ──────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
@@ -14,7 +16,9 @@ ok()   { echo -e "${GREEN}✔${NC}  $*"; }
 info() { echo -e "${YELLOW}→${NC}  $*"; }
 err()  { echo -e "${RED}✘${NC}  $*" >&2; }
 
-# ── 1. Ferma il frontend se già in ascolto ──────────────────────────────────
+# ── 1. Ferma eventuali frontend avviati a mano sull'host ────────────────────
+# Il frontend ora è containerizzato e pubblica su 127.0.0.1:$FRONTEND_PORT.
+# Un `npm run dev` lasciato attivo sull'host occuperebbe la stessa porta.
 info "Verifica frontend su porta $FRONTEND_PORT..."
 if lsof -ti tcp:"$FRONTEND_PORT" &>/dev/null; then
   info "Processo già attivo su :$FRONTEND_PORT — lo fermo."
@@ -26,12 +30,12 @@ ok "Porta $FRONTEND_PORT libera."
 # ── 2. Ferma i container del progetto (se attivi) ───────────────────────────
 info "Fermo i container docker-compose esistenti..."
 cd "$DOCKER_DIR"
-docker compose down --remove-orphans 2>/dev/null || true
+"${COMPOSE[@]}" down --remove-orphans 2>/dev/null || true
 ok "Container fermati."
 
-# ── 3. Build e avvio di tutti i servizi ─────────────────────────────────────
+# ── 3. Build e avvio di tutti i servizi (frontend incluso) ──────────────────
 info "Build e avvio di tutti i servizi (--build)..."
-docker compose up -d --build
+"${COMPOSE[@]}" up -d --build
 ok "Tutti i container avviati."
 
 # ── 4. Attendi che auth-service sia pronto ──────────────────────────────────
@@ -67,29 +71,22 @@ for i in $(seq 1 10); do
   sleep 2
 done
 
-# ── 6. Avvio frontend Next.js (dev) ─────────────────────────────────────────
-info "Avvio frontend Next.js su http://localhost:$FRONTEND_PORT ..."
-cd "$FRONTEND_DIR"
-GATEWAY_URL="http://localhost:$GATEWAY_PORT" \
-NEXT_PUBLIC_GATEWAY_URL="http://localhost:$GATEWAY_PORT" \
-npm run dev -- --port "$FRONTEND_PORT" > "$FRONTEND_LOG" 2>&1 &
-FRONTEND_PID=$!
-
-# Attendi che Next.js sia pronto
-for i in $(seq 1 30); do
-  if grep -q "Ready in" "$FRONTEND_LOG" 2>/dev/null; then
-    ok "Frontend pronto (PID $FRONTEND_PID)."
+# ── 6. Attendi il frontend Next.js (container, dev mode) ────────────────────
+info "Attendo il frontend Next.js (max 90s)..."
+for i in $(seq 1 45); do
+  if docker logs frontend 2>&1 | grep -q "Ready in"; then
+    ok "Frontend pronto (hot-reload attivo sul sorgente)."
     break
   fi
-  if ! kill -0 "$FRONTEND_PID" 2>/dev/null; then
-    err "Il processo frontend è uscito in modo inaspettato."
-    err "Log: $FRONTEND_LOG"
-    tail -20 "$FRONTEND_LOG" >&2
+  if [ "$(docker inspect -f '{{.State.Running}}' frontend 2>/dev/null)" != "true" ]; then
+    err "Il container frontend è uscito in modo inaspettato."
+    err "Log: docker logs frontend"
+    docker logs --tail 20 frontend >&2 2>&1
     exit 1
   fi
-  if [ "$i" -eq 30 ]; then
-    err "Timeout: il frontend non ha risposto in 60s."
-    err "Log: $FRONTEND_LOG"
+  if [ "$i" -eq 45 ]; then
+    err "Timeout: il frontend non ha risposto in 90s."
+    err "Log: docker logs frontend"
     exit 1
   fi
   sleep 2
@@ -101,13 +98,14 @@ echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━
 echo -e "${GREEN}  Stack avviato con successo!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-echo -e "  Frontend   → ${YELLOW}http://localhost:$FRONTEND_PORT${NC}"
-echo -e "  Gateway    → ${YELLOW}http://localhost:$GATEWAY_PORT${NC}"
+echo -e "  App        → ${YELLOW}http://localhost:$GATEWAY_PORT${NC}  (gateway + frontend)"
+echo -e "  Frontend   → ${YELLOW}http://localhost:$FRONTEND_PORT${NC}  (diretto, bypassa il gateway)"
 echo ""
-echo -e "  Log frontend : $FRONTEND_LOG"
-echo -e "  Log backend  : docker logs <nome-service>"
+echo -e "  Il frontend gira in dev mode: le modifiche al sorgente si applicano"
+echo -e "  a caldo, senza rebuild."
+echo ""
+echo -e "  Log          : docker logs -f <nome-service>   (es. frontend, ai-service)"
 echo ""
 echo -e "  Per fermare tutto:"
-echo -e "    kill $FRONTEND_PID                      # frontend"
-echo -e "    cd $DOCKER_DIR && docker compose down   # backend"
+echo -e "    cd $DOCKER_DIR && docker compose -f docker-compose.yml -f docker-compose.dev.yml down"
 echo ""
