@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Revisione del trimestre.
+ * Revisione del trimestre — e, per il 4° trimestre, revisione ANNUALE.
  *
  * GET  /api/accounting/review/:quarterId  — restituisce l'ultimo report salvato (se esiste),
  *                                            senza ricalcolare nulla. 404 se non è mai stata
@@ -15,21 +15,33 @@
  *
  * Perno del calcolo: l'unico file di categoria "bilancio" del trimestre.
  *
- * Operazioni:
+ * Operazioni (trimestrale, Q1-Q3):
  *   1. Anomalie Stato Patrimoniale (passività > attività) — deterministico.
  *   2. Anomalie Conto Economico (costi > ricavi) — deterministico (se il CE è presente).
- *   3. Riconciliazione delle voci chiave con i documenti a corredo — DETERMINISTICA.
+ *   3. Riconciliazione delle voci chiave con i documenti del trimestre — DETERMINISTICA.
  *   4. Commento professionale sui risultati — AI (Gemini).
+ *
+ * Il 4° trimestre è invece la revisione ANNUALE: il bilancio caricato deve essere quello
+ * d'esercizio (12 mesi), non un bilancio trimestrale — verificato dall'AI, perché la sola
+ * data di chiusura (31/12) non distingue i due casi. Il calcolo richiede inoltre che i
+ * trimestri 1-3 dello stesso incarico abbiano la documentazione completa: la riconciliazione
+ * annuale somma i registri IVA dei 4 trimestri, quindi senza quella documentazione l'importo
+ * annuale sarebbe parziale e fuorviante — per questo il calcolo viene bloccato, non eseguito
+ * con un risultato incompleto.
  *
  * Nota di progetto: i NUMERI non passano mai dall'AI. Sul campo il modello ha sbagliato
  * sistematicamente le due cose che qui contano: scegliere la riga giusta in un prospetto
  * (nella LIPE scambiava IVA esigibile e IVA detratta) e fare aritmetica. Legge, somma e
- * confronta il codice; all'AI resta il commento, che è ciò per cui serve davvero.
+ * confronta il codice; all'AI restano il commento e la verifica del tipo di bilancio, cioè
+ * ciò che sa fare meglio del codice: capire cosa dice un testo, non fare i conti.
  */
 
-const { parseBilancioTrimestrale } = require('../lib/bilancioTrimestrale');
+const { analizzaBilancio } = require('../lib/bilancioTrimestrale');
+const { extractPagesText } = require('../lib/parsers');
 const { listDocuments, downloadDocument } = require('../lib/documentClient');
-const { costruisciRiscontri, sumByCode } = require('../lib/riconciliazione');
+const { getQuarter, listQuarters, getCategoryFlags } = require('../lib/assignmentClient');
+const { verificaCompletezzaTrimestre } = require('../lib/assignmentCategories');
+const { costruisciRiscontri, costruisciRiscontriAnnuali, sumByCode } = require('../lib/riconciliazione');
 const { valutaSalute } = require('../lib/saluteAzienda');
 const { ReviewReport } = require('../models');
 
@@ -57,6 +69,31 @@ async function callCommentoAI(riscontri, meta, salute) {
   }
 }
 
+/**
+ * Chiede all'AI se il bilancio caricato per il 4° trimestre è quello ANNUALE. A differenza
+ * del commento, qui un fallimento NON può essere ignorato in silenzio: senza questa verifica
+ * non c'è modo di accorgersi che è stato caricato per errore un bilancio trimestrale, quindi
+ * l'errore va propagato e blocca il calcolo (vedi chiamata in computeReview).
+ */
+async function verificaBilancioAnnualeAI(analysis, pages) {
+  const cePresente = analysis.conto_economico.totale_costi != null || analysis.conto_economico.totale_ricavi != null;
+  const res = await fetch(`${AI_SERVICE_URL}/api/verifica-bilancio`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Internal-Token': INTERNAL_SERVICE_TOKEN,
+    },
+    body: JSON.stringify({
+      meta: analysis.meta,
+      contoEconomicoPresente: cePresente,
+      testo: pages.join('\n'),
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || `ai-service ${res.status}`);
+  return data; // { annuale, motivazione }
+}
+
 /** Errore con status HTTP esplicito, per distinguere i fallimenti attesi (400/502) da bug (500). */
 class ReviewError extends Error {
   constructor(status, message) {
@@ -65,9 +102,62 @@ class ReviewError extends Error {
   }
 }
 
+/**
+ * Verifica che i trimestri 1-3 dello stesso incarico abbiano la documentazione completa
+ * (stessa regola di sblocco usata per la Revisione AI trimestrale: ogni categoria richiesta
+ * ha almeno un documento, oppure è segnata N/A a livello di incarico). Ritorna anche i
+ * documenti di quei trimestri, già scaricati: servono comunque per la riconciliazione annuale,
+ * evita di rileggerli due volte.
+ */
+async function verificaTrimestriPrecedenti(assignmentId, token) {
+  const [siblings, categoryFlags] = await Promise.all([
+    listQuarters(assignmentId, token),
+    getCategoryFlags(assignmentId, token),
+  ]);
+
+  const trimestriIncompleti = [];
+  const docsPerQuarter = {};
+
+  for (const n of [1, 2, 3]) {
+    const q = siblings.find((s) => s.quarter === n);
+    if (!q) {
+      trimestriIncompleti.push({ trimestre: n, dettaglio: 'trimestre non ancora creato/iniziato.' });
+      continue;
+    }
+    let docs;
+    try {
+      docs = await listDocuments(q.id, token);
+    } catch (err) {
+      trimestriIncompleti.push({ trimestre: n, dettaglio: 'impossibile leggere i documenti caricati.' });
+      continue;
+    }
+    docsPerQuarter[n] = docs;
+    const { completo, categorieMancanti } = verificaCompletezzaTrimestre(docs, categoryFlags);
+    if (!completo) {
+      trimestriIncompleti.push({
+        trimestre: n,
+        dettaglio: `mancano: ${categorieMancanti.map((c) => c.label).join(', ')}.`,
+      });
+    }
+  }
+
+  return { trimestriIncompleti, docsPerQuarter };
+}
+
 /** Il calcolo vero e proprio: legge i documenti, riconcilia, interroga l'AI. Nessuna persistenza qui. */
 async function computeReview(quarterId, token) {
-  // 1. Documenti del trimestre
+  // 0. Numero del trimestre e incarico di appartenenza: il 4° trimestre segue un percorso
+  //    diverso (revisione annuale) dai primi tre.
+  let quarterInfo;
+  try {
+    quarterInfo = await getQuarter(quarterId, token);
+  } catch (err) {
+    console.error('review getQuarter error:', err.message);
+    throw new ReviewError(502, 'Impossibile leggere le informazioni del trimestre.');
+  }
+  const isAnnuale = quarterInfo.quarter === 4;
+
+  // 1. Documenti del trimestre corrente
   let docs;
   try {
     docs = await listDocuments(quarterId, token);
@@ -78,16 +168,59 @@ async function computeReview(quarterId, token) {
 
   const bilancioDoc = (docs || []).find((d) => d.category === 'bilancio');
   if (!bilancioDoc) {
-    throw new ReviewError(400, 'Nessun bilancio caricato per questo trimestre. Carica prima il bilancio.');
+    throw new ReviewError(400, isAnnuale
+      ? 'Nessun bilancio caricato per il 4° trimestre. Carica prima il bilancio annuale.'
+      : 'Nessun bilancio caricato per questo trimestre. Carica prima il bilancio.');
   }
 
-  // 2. Analisi del bilancio (deterministica)
+  // 1b. Solo per il 4° trimestre: i trimestri precedenti devono essere completi PRIMA di
+  //     leggere e analizzare qualunque cosa — il calcolo annuale non parte se manca la base.
+  let docsPerQuarter = null;
+  if (isAnnuale) {
+    const { trimestriIncompleti, docsPerQuarter: docsPrecedenti } =
+      await verificaTrimestriPrecedenti(quarterInfo.assignment_id, token);
+
+    if (trimestriIncompleti.length) {
+      const righe = trimestriIncompleti.map((t) => `— ${t.trimestre}° trimestre: ${t.dettaglio}`).join('\n');
+      throw new ReviewError(
+        400,
+        `Non è possibile calcolare la revisione del 4° trimestre: la documentazione dei trimestri precedenti non è completa.\n${righe}\n\nCompleta la documentazione mancante nei trimestri indicati e riprova.`
+      );
+    }
+    docsPerQuarter = { ...docsPrecedenti, 4: docs };
+  }
+
+  // 2. Analisi del bilancio (deterministica). Estraiamo anche il testo delle pagine: per il
+  //    4° trimestre serve alla verifica AI del tipo di bilancio, oltre che al parsing stesso.
+  let pages;
   let analysis;
   try {
-    analysis = await parseBilancioTrimestrale(await downloadDocument(bilancioDoc.id, token));
+    const buffer = await downloadDocument(bilancioDoc.id, token);
+    pages = await extractPagesText(buffer);
+    analysis = analizzaBilancio(pages);
   } catch (err) {
     console.error('review parse bilancio error:', err.message);
     throw new ReviewError(500, 'Errore nell\'analisi del bilancio.');
+  }
+
+  // 2b. Solo per il 4° trimestre: il bilancio DEVE essere quello annuale, non quello del
+  //     solo 4° trimestre. La data di chiusura da sola non lo distingue: serve l'AI.
+  if (isAnnuale) {
+    let esitoVerifica;
+    try {
+      esitoVerifica = await verificaBilancioAnnualeAI(analysis, pages);
+    } catch (err) {
+      console.error('review verificaBilancioAnnualeAI error:', err.message);
+      throw new ReviewError(502, `Verifica del tipo di bilancio non riuscita (${err.message}). Riprova.`);
+    }
+    if (!esitoVerifica.annuale) {
+      throw new ReviewError(
+        400,
+        `Il documento caricato come bilancio per il 4° trimestre non risulta essere il bilancio annuale d'esercizio.` +
+        (esitoVerifica.motivazione ? ` ${esitoVerifica.motivazione}` : '') +
+        ` Carica il bilancio annuale (l'intero esercizio, non il solo 4° trimestre) e riprova.`
+      );
+    }
   }
 
   const sp = analysis.stato_patrimoniale;
@@ -97,12 +230,9 @@ async function computeReview(quarterId, token) {
   // 3. Riconciliazione con i documenti a corredo (deterministica)
   let riscontri = [];
   try {
-    riscontri = await costruisciRiscontri(
-      analysis,
-      docs,
-      (id) => downloadDocument(id, token),
-      analysis.meta?.trimestre
-    );
+    riscontri = isAnnuale
+      ? await costruisciRiscontriAnnuali(analysis, docsPerQuarter, (id) => downloadDocument(id, token))
+      : await costruisciRiscontri(analysis, docs, (id) => downloadDocument(id, token), analysis.meta?.trimestre);
   } catch (err) {
     console.error('review riconciliazione error:', err.message);
   }
@@ -120,6 +250,7 @@ async function computeReview(quarterId, token) {
     return r ? r.valore_bilancio : sumByCode(V, codice);
   };
   const salute = valutaSalute({
+    periodo: isAnnuale ? 'anno' : 'trimestre',
     conto_economico: {
       totale_costi: ce.totale_costi,
       totale_ricavi: ce.totale_ricavi,
@@ -152,7 +283,12 @@ async function computeReview(quarterId, token) {
   }
   salute.giudizio_ai = commentoAI.salute ?? null;
 
+  const documentiAnalizzati = isAnnuale
+    ? Object.values(docsPerQuarter).reduce((s, d) => s + (d?.length ?? 0), 0)
+    : (docs || []).length;
+
   return {
+    periodo: isAnnuale ? 'annuale' : 'trimestrale',
     meta: analysis.meta,
     stato_patrimoniale: {
       totale_attivita: sp.totale_attivita,
@@ -175,7 +311,7 @@ async function computeReview(quarterId, token) {
     sintesi_ai: commentoAI.sintesi ?? null,
     ai_used: commentoAI.ai_used ?? false,
     ai_error: commentoAI.ai_error ?? null,
-    documenti_analizzati: (docs || []).length,
+    documenti_analizzati: documentiAnalizzati,
     conteggio_voci: (analysis.voci || []).length,
   };
 }

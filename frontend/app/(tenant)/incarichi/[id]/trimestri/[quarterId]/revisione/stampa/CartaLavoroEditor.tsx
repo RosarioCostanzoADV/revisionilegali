@@ -1,31 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { CartaLavoroContent } from "./CartaLavoroContent";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { sanitizeEditableHtml } from "@/lib/sanitizeEditableHtml";
 
 /**
- * Wrapper editabile della carta di lavoro: sopra il documento generato dal calcolo
- * (CartaLavoroContent) aggiunge la possibilità di modificarlo liberamente come un
- * foglio Word (contentEditable) e di salvare la versione modificata.
+ * Wrapper editabile del documento del trimestre: sopra il contenuto generato dal calcolo
+ * (passato come `children` — carta di lavoro per Q1-Q3, relazione finale per il 4°
+ * trimestre) aggiunge la possibilità di modificarlo liberamente come un foglio Word
+ * (contentEditable) e di salvare la versione modificata.
  *
  * Una volta salvata una versione manuale, questa ha priorità e viene mostrata al posto
- * di quella rigenerata dal calcolo — finché non viene esplicitamente scartata ("Rigenera
- * dal calcolo"). Coerente con la logica già adottata per la revisione: l'ultima versione
- * salvata vince, nessun ricalcolo/rigenerazione silenziosa.
+ * di quella rigenerata dal calcolo — finché non viene esplicitamente scartata ("Riporta
+ * allo stato originale"). Coerente con la logica già adottata per la revisione: l'ultima
+ * versione salvata vince, nessun ricalcolo/rigenerazione silenziosa.
  */
-export function CartaLavoroEditor(props: {
-  assignmentId: string;
-  quarterId: string;
-  companyName: string;
-  companyCity: string | null;
-  year: number;
-  quarterLabel: string;
-  quarterRange: string;
-  typeLabel: string;
-  revisorName: string | null;
-}) {
-  const { quarterId } = props;
+export function CartaLavoroEditor({ quarterId, children }: { quarterId: string; children: ReactNode }) {
 
   const [caricato, setCaricato] = useState(false);
   const [savedHtml, setSavedHtml] = useState<string | null>(null);
@@ -175,7 +164,7 @@ export function CartaLavoroEditor(props: {
         {savedHtml != null ? (
           <div dangerouslySetInnerHTML={{ __html: savedHtml }} />
         ) : (
-          <CartaLavoroContent {...props} />
+          children
         )}
       </div>
     </div>

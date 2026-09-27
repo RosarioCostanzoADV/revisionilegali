@@ -3,6 +3,8 @@ import { gwJson } from "@/lib/api";
 import { PrintTrigger } from "./PrintTrigger";
 import { SalvaPdfButton } from "./SalvaPdfButton";
 import { CartaLavoroEditor } from "./CartaLavoroEditor";
+import { CartaLavoroContent } from "./CartaLavoroContent";
+import { RelazioneFinaleContent } from "./RelazioneFinaleContent";
 import type { MeResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -58,8 +60,15 @@ export default async function CartaLavoroStampaPage({
   const quarterRange = QUARTER_RANGES[quarter.quarter] ?? "";
   const tenantName = me?.tenant?.name ?? null;
   const revisorName = me?.profile?.full_name ?? null;
-  const pdfFilename = `Carta di lavoro - ${companyName} - ${quarterLabel} ${assignment.year}.pdf`
-    .replace(/[/\\?%*:|"<>]/g, "-");
+
+  // Il 4° trimestre è la revisione ANNUALE: per gli incarichi di revisione legale produce
+  // la relazione finale del revisore (art. 14 D.Lgs. 39/2010), non la carta di lavoro.
+  const isRelazioneFinale = quarter.quarter === 4 && assignment.type === "revisione_legale";
+  const titoloDocumento = isRelazioneFinale ? "Relazione del revisore" : `Carte di lavoro — ${typeLabel}`;
+  const pdfFilename = (isRelazioneFinale
+    ? `Relazione del revisore - ${companyName} - ${assignment.year}.pdf`
+    : `Carta di lavoro - ${companyName} - ${quarterLabel} ${assignment.year}.pdf`
+  ).replace(/[/\\?%*:|"<>]/g, "-");
 
   return (
     <>
@@ -93,7 +102,9 @@ export default async function CartaLavoroStampaPage({
             ← Torna alla revisione
           </a>
           <span className="text-gray-300">|</span>
-          <span className="text-sm text-gray-500">Carta di lavoro — {quarterLabel} {assignment.year}</span>
+          <span className="text-sm text-gray-500">
+            {isRelazioneFinale ? "Relazione del revisore" : "Carta di lavoro"} — {quarterLabel} {assignment.year}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <SalvaPdfButton filename={pdfFilename} />
@@ -117,24 +128,43 @@ export default async function CartaLavoroStampaPage({
             </div>
           )}
 
-          <h1
-            className="text-xl font-bold mb-8 text-center uppercase tracking-wide"
-            style={{ color: "#2a4b7e" }}
-          >
-            Carte di lavoro — {typeLabel}
-          </h1>
+          {!isRelazioneFinale && (
+            <h1
+              className="text-xl font-bold mb-8 text-center uppercase tracking-wide"
+              style={{ color: "#2a4b7e" }}
+            >
+              {titoloDocumento}
+            </h1>
+          )}
 
-          <CartaLavoroEditor
-            assignmentId={assignmentId}
-            quarterId={quarterId}
-            companyName={companyName}
-            companyCity={companyCity}
-            year={assignment.year}
-            quarterLabel={quarterLabel}
-            quarterRange={quarterRange}
-            typeLabel={typeLabel}
-            revisorName={revisorName}
-          />
+          <CartaLavoroEditor quarterId={quarterId}>
+            {isRelazioneFinale ? (
+              <RelazioneFinaleContent
+                assignmentId={assignmentId}
+                quarterId={quarterId}
+                companyName={companyName}
+                companyCity={companyCity}
+                companyFiscalCode={companyFiscalCode}
+                year={assignment.year}
+                quarterLabel={quarterLabel}
+                quarterRange={quarterRange}
+                typeLabel={typeLabel}
+                revisorName={revisorName}
+              />
+            ) : (
+              <CartaLavoroContent
+                assignmentId={assignmentId}
+                quarterId={quarterId}
+                companyName={companyName}
+                companyCity={companyCity}
+                year={assignment.year}
+                quarterLabel={quarterLabel}
+                quarterRange={quarterRange}
+                typeLabel={typeLabel}
+                revisorName={revisorName}
+              />
+            )}
+          </CartaLavoroEditor>
         </div>
       </div>
     </>

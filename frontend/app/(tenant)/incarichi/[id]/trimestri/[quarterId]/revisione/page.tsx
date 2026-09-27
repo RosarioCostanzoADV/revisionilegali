@@ -19,6 +19,8 @@ interface Confronto {
   etichetta: string;
   bilancio: number | null;
   riscontrato: number | null;
+  /** Fonte del valore riscontrato (es. "Mastrino"); assente nei report più vecchi = partitario. */
+  etichetta_riscontrato?: string;
   scostamento: number | null;
   esito: Esito;
 }
@@ -528,7 +530,7 @@ function CardRiscontro({
             </div>
             <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-600">
               <span>Bilancio: <span className="tabular-nums font-medium text-gray-900">{eur(cf.bilancio)}</span></span>
-              <span>Partitario: <span className="tabular-nums font-medium text-gray-900">{eur(cf.riscontrato)}</span></span>
+              <span>{cf.etichetta_riscontrato ?? "Partitario"}: <span className="tabular-nums font-medium text-gray-900">{eur(cf.riscontrato)}</span></span>
               <span>Differenza: <span className="tabular-nums font-medium text-gray-900">{eur(cf.scostamento === null ? null : Math.abs(cf.scostamento))}</span></span>
             </div>
           </div>
@@ -728,7 +730,12 @@ export default function RevisionePage({
       )}
 
       {errore && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errore}</div>
+        <div
+          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          style={{ whiteSpace: "pre-line" }}
+        >
+          {errore}
+        </div>
       )}
 
       {report && (

@@ -111,3 +111,7 @@ desktop.ini
 # MIGRAZIONE DATI — dataset sensibili locali
 # ============================================================
 refactor/backend/scripts/data/*.csv
+
+# Documenti reali di clienti usati per i test locali
+/fwdprimotrimestre/
+/docs/riconciliazione-Q1-2025.md

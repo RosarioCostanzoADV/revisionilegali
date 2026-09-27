@@ -5,7 +5,8 @@ export type CategorySlug =
   | "mastrini"
   | "libro_giornale"
   | "f24_registri_iva"
-  | "inventario_annuale";
+  | "inventario_annuale"
+  | "estratti_conto_banca";
 
 export interface CategoryDef {
   slug: CategorySlug;
@@ -86,6 +87,16 @@ export const ASSIGNMENT_CATEGORIES: CategoryDef[] = [
     canBeNA: false,
     isCompanyLinked: false,
     required: true,
+    isBilancio: false,
+  },
+  {
+    slug: "estratti_conto_banca",
+    label: "Estratti conto bancari",
+    description:
+      "Estratti conto delle banche alla data di chiusura del trimestre, uno per conto. La revisione confronta il saldo finale di ciascuno con il conto banca a bilancio. Indica nel nome del file il codice conto (es. 34.01.017) o il nome della banca.",
+    canBeNA: false,
+    isCompanyLinked: false,
+    required: false,
     isBilancio: false,
   },
   {

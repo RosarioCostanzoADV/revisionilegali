@@ -37,6 +37,12 @@ const pct = (n) => (n == null || !Number.isFinite(n) ? null : +(n * 100).toFixed
  * così la salute e i riscontri raccontano gli stessi numeri.
  */
 function valutaSalute(input) {
+  // periodo: 'trimestre' (default) per la revisione trimestrale, 'anno' per la
+  // revisione annuale (4° trimestre) — cambia solo il testo, non le soglie né il calcolo.
+  const periodo = input.periodo === 'anno' ? 'anno' : 'trimestre';
+  const delPeriodo = periodo === 'anno' ? "dell'anno" : 'del trimestre';
+  const inEsame = periodo === 'anno' ? "l'anno in esame" : 'il trimestre in esame';
+
   const ce = input.conto_economico ?? {};
   const ricavi = ce.totale_ricavi;
   const costi = ce.totale_costi;
@@ -55,15 +61,15 @@ function valutaSalute(input) {
   const incidenzaCosti = cePresente && ricavi ? costi / ricavi : null;
   indicatori.push({
     dimensione: 'Redditività',
-    domanda: 'L\'attività del trimestre genera margine?',
+    domanda: `L'attività ${delPeriodo} genera margine?`,
     stato: valuta(ros, [
       { max: 0, stato: STATO.CRITICO },       // in perdita
       { max: 0.05, stato: STATO.ATTENZIONE }, // margine risicato
       { max: Infinity, stato: STATO.SOLIDO },
     ]),
     misure: [
-      { etichetta: 'Ricavi del trimestre', valore: arrotonda(ricavi), formato: 'euro' },
-      { etichetta: 'Costi del trimestre', valore: arrotonda(costi), formato: 'euro' },
+      { etichetta: `Ricavi ${delPeriodo}`, valore: arrotonda(ricavi), formato: 'euro' },
+      { etichetta: `Costi ${delPeriodo}`, valore: arrotonda(costi), formato: 'euro' },
       { etichetta: 'Risultato', valore: arrotonda(utile), formato: 'euro' },
       { etichetta: 'Margine sui ricavi (ROS)', valore: pct(ros), formato: 'percento', evidenza: true },
       { etichetta: 'Incidenza dei costi', valore: pct(incidenzaCosti), formato: 'percento' },
@@ -125,7 +131,9 @@ function valutaSalute(input) {
   return {
     complessivo,
     indicatori,
-    avvertenza: 'Indicatori riferiti al solo trimestre in esame: essendo una fotografia puntuale, non esprimono un andamento. Vanno letti insieme ai rilievi sui singoli riscontri.',
+    avvertenza: periodo === 'anno'
+      ? "Indicatori riferiti all'intero esercizio: a differenza della revisione trimestrale, coprono i 12 mesi dell'anno. Vanno letti insieme ai rilievi sui singoli riscontri."
+      : `Indicatori riferiti al solo ${inEsame}: essendo una fotografia puntuale, non esprimono un andamento. Vanno letti insieme ai rilievi sui singoli riscontri.`,
   };
 }
 

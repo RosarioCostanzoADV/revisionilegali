@@ -286,10 +286,64 @@ function parseMastrinoPartitario(pages) {
   };
 }
 
+// ── Estratti conto bancari ───────────────────────────────────────────────────
+//
+// Ogni banca stampa l'estratto conto a modo suo: non esiste un layout comune come per i
+// mastrini. L'unico elemento sempre presente è l'etichetta del saldo di chiusura ("Saldo
+// finale", "Saldo contabile al 31/03/2025", "Saldo al…") seguita dall'importo. Si prende
+// l'ULTIMA occorrenza: gli estratti riportano anche il saldo iniziale e, spesso, saldi
+// intermedi per pagina o per mese, ma il saldo di chiusura del periodo è sempre in fondo.
+
+const DATA = String.raw`\d{2}[\/.-]\d{2}[\/.-]\d{2,4}`;
+const RE_SALDO_ESTRATTO = new RegExp(
+  String.raw`saldo\s+(?:contabile\s+|finale\s+)*(?:finale\s+)?(?:al\s+(${DATA}))?` +
+  String.raw`[^0-9\n]{0,30}?(\(?[-+]?\s*${IMPORTO.replace('-?', '')}\)?\s*[-+]?)(\s*(?:D|A|C|DARE|AVERE|a\s+debito|a\s+credito|debitore|creditore)\b)?`,
+  'gi'
+);
+
+/** "31.03.25" / "31-03-2025" → "31/03/2025". */
+function normalizzaData(d) {
+  if (!d) return null;
+  const [gg, mm, aa] = d.split(/[\/.-]/);
+  return `${gg}/${mm}/${aa.length === 2 ? `20${aa}` : aa}`;
+}
+
+/**
+ * Saldo di chiusura di un estratto conto: { saldo, data, riga } o null.
+ * Il segno: un saldo "a debito" / "D" / "-" è uno scoperto (negativo per la società).
+ * Le righe "saldo iniziale/precedente/medio" e il saldo "disponibile/liquido" (che include
+ * fidi e valute) sono escluse: il riscontro si fa sul saldo CONTABILE di chiusura.
+ */
+function parseEstrattoConto(pages) {
+  const full = testoPiatto(pages);
+  let ultimo = null;
+  for (const m of full.matchAll(RE_SALDO_ESTRATTO)) {
+    // Solo l'etichetta (prima dell'importo): la frase successiva non conta.
+    const etichetta = m[0].slice(0, m[0].indexOf(m[2]));
+    if (/iniziale|precedente|medio|inizio|disponibile|liquido/i.test(etichetta)) continue;
+    const grezzo = m[2].replace(/[()\s+]/g, '');
+    const negativo = /-/.test(grezzo) || m[2].trim().startsWith('(')
+      || /^\s*(D|DARE|a\s+debito|debitore)$/i.test(m[3] ?? '');
+    const v = parseImporto(grezzo.replace(/-/g, ''));
+    if (v == null) continue;
+    ultimo = { saldo: negativo ? -v : v, data: normalizzaData(m[1]), riga: m[0].trim() };
+  }
+  return ultimo;
+}
+
 // ── Selezione documenti ──────────────────────────────────────────────────────
 
 const trova = (docs, cat, re) =>
   (docs ?? []).find((d) => d.category === cat && (!re || re.test((d.name || '').toLowerCase())));
+
+/** Codice conto letto dal nome del file: "34.01.017" o "3401017" → "3401017". */
+function codiceDaNome(name) {
+  const n = name || '';
+  const puntato = n.match(/(\d{2})\.(\d{2})\.(\d{3})/);
+  if (puntato) return `${puntato[1]}${puntato[2]}${puntato[3]}`;
+  const secco = n.match(/(?<!\d)(3401\d{3})(?!\d)/);
+  return secco ? secco[1] : null;
+}
 
 /** Mastrini banca indicizzati per codice conto, letto dal nome ("34.01.017" → "3401017"). */
 function selectBankMastrini(docs) {
@@ -300,6 +354,75 @@ function selectBankMastrini(docs) {
     if (m) perCodice.set(`${m[1]}${m[2]}${m[3]}`, d);
   }
   return perCodice;
+}
+
+// Parole della descrizione del conto che non identificano una banca.
+const PAROLE_GENERICHE = new Set([
+  'BANCA', 'BANCO', 'BANK', 'C/C', 'CC', 'CONTO', 'CORRENTE', 'DEPOSITO', 'DEPOSITI',
+  'BANCARI', 'BANCARIO', 'POSTALI', 'SPA', 'S.P.A.', 'DI', 'DEL', 'DELLA', 'E', 'N.', 'C/',
+]);
+
+function paroleBanca(descrizione) {
+  return String(descrizione ?? '')
+    .toUpperCase()
+    .split(/[^A-Z0-9À-Ù]+/)
+    .filter((p) => p.length >= 3 && !PAROLE_GENERICHE.has(p) && !/^\d+$/.test(p));
+}
+
+/**
+ * Abbina ogni estratto conto a un conto banca del bilancio.
+ *   1. codice conto nel nome del file ("34.01.017", "3401017") — abbinamento certo;
+ *   2. altrimenti, nome della banca (dalla descrizione del conto a bilancio) presente nel
+ *      nome del file o nell'intestazione dell'estratto — solo se indica UN solo conto:
+ *      due conti presso la stessa banca non sono distinguibili così, e un abbinamento
+ *      sbagliato è peggio di nessun abbinamento.
+ * Restituisce { perCodice: Map<codice, {doc, pages}>, nonAbbinati: [{doc, motivo}] }.
+ */
+async function abbinaEstrattiConto({ docs, conti, download }) {
+  const perCodice = new Map();
+  const nonAbbinati = [];
+  const estratti = (docs ?? []).filter((d) => d.category === 'estratti_conto_banca');
+
+  for (const doc of estratti) {
+    let pages = null;
+    try {
+      pages = await extractPagesText(await download(doc.id));
+    } catch (err) {
+      nonAbbinati.push({ doc, motivo: `file illeggibile (${err.message})` });
+      continue;
+    }
+
+    let codice = codiceDaNome(doc.name);
+    if (codice && !conti.some((c) => c.codice === codice)) {
+      nonAbbinati.push({ doc, motivo: `il conto ${codice} indicato nel nome non è fra le banche del bilancio` });
+      continue;
+    }
+    if (!codice) {
+      // Nome file + prima pagina: l'intestazione della banca sta lì.
+      const dove = `${doc.name} ${pages[0] ?? ''}`.toUpperCase();
+      const candidati = conti.filter((c) => {
+        const parole = paroleBanca(c.descrizione);
+        return parole.length && parole.every((p) => dove.includes(p));
+      });
+      if (candidati.length === 1) codice = candidati[0].codice;
+      else {
+        nonAbbinati.push({
+          doc,
+          motivo: candidati.length > 1
+            ? `corrisponde a più conti (${candidati.map((c) => c.codice).join(', ')}): indica il codice conto nel nome del file`
+            : 'nessun conto banca riconosciuto: indica il codice conto (es. 34.01.017) nel nome del file',
+        });
+        continue;
+      }
+    }
+
+    if (perCodice.has(codice)) {
+      nonAbbinati.push({ doc, motivo: `conto ${codice} già abbinato a «${perCodice.get(codice).doc.name}»` });
+      continue;
+    }
+    perCodice.set(codice, { doc, pages });
+  }
+  return { perCodice, nonAbbinati };
 }
 
 function selectDocumenti(docs) {
@@ -556,11 +679,49 @@ async function riscontriPartitario({ voci, mastro, contoPrincipale, mastrinoDoc,
   return riscontri;
 }
 
-async function riscontriBanche({ voci, docs, download }) {
+/**
+ * Saldo dell'estratto conto utilizzabile per il riscontro, o null (con nota che spiega
+ * perché). Aggiunge la prova della riga letta.
+ */
+function saldoEstratto({ base, estratto, dataChiusura }) {
+  const { doc, pages } = estratto;
+  const letto = parseEstrattoConto(pages);
+  if (!letto) {
+    base.note.push(`Estratto conto «${doc.name}»: saldo di chiusura non riconosciuto (nessuna riga "Saldo finale" / "Saldo al…" con importo).`);
+    return null;
+  }
+
+  base.prove.push({
+    titolo: 'Saldo di chiusura dell\'estratto conto bancario',
+    documento: doc.name,
+    colonne: ['Riga letta', 'Data', 'Saldo'],
+    righe: [[letto.riga, letto.data ?? '—', letto.saldo]],
+    totale: { etichetta: 'Saldo secondo la banca', valore: letto.saldo },
+  });
+
+  // Un estratto a una data diversa dalla chiusura del periodo non è confrontabile: il saldo
+  // di un altro periodo darebbe un esito privo di significato, in un senso o nell'altro.
+  if (letto.data && dataChiusura && letto.data !== dataChiusura) {
+    base.note.push(`L'estratto conto riporta il saldo al ${letto.data}, non alla data di chiusura del bilancio (${dataChiusura}): non è stato usato nel riscontro.`);
+    return null;
+  }
+  if (!letto.data) {
+    base.note.push('L\'estratto conto non riporta la data accanto al saldo: verificare che sia quello di fine periodo.');
+  }
+  return letto.saldo;
+}
+
+async function riscontriBanche({ voci, docs, download, dataChiusura }) {
   const mastrini = selectBankMastrini(docs);
   const codici = [...new Set(
     (voci ?? []).map((v) => String(v.codice ?? '')).filter((c) => /^3401\d+$/.test(c))
   )];
+  const conti = codici.map((codice) => ({
+    codice,
+    descrizione: (voci.find((v) => String(v.codice) === codice)?.descrizione) ?? '',
+  }));
+  const { perCodice: estratti, nonAbbinati } = await abbinaEstrattiConto({ docs, conti, download });
+  const ciSonoEstratti = estratti.size > 0 || nonAbbinati.length > 0;
 
   const out = [];
   for (const codice of codici) {
@@ -581,34 +742,79 @@ async function riscontriBanche({ voci, docs, download }) {
       note: [],
     };
 
+    // 1. Mastrino del conto (contabilità della società).
+    let saldoMastrino = null;
     const doc = mastrini.get(codice);
     if (!doc) {
       base.note.push(`Nessun mastrino caricato per il conto ${codice}.`);
-      out.push(base);
-      continue;
+    } else {
+      let saldo = null;
+      try {
+        saldo = parseMastrinoConto(await extractPagesText(await download(doc.id)));
+      } catch { /* gestito sotto */ }
+
+      if (!saldo) {
+        base.note.push('Saldo non leggibile: nessuna riga "Totali" riconosciuta nel mastrino.');
+      } else {
+        base.prove.push({
+          titolo: 'Saldo finale del mastrino',
+          documento: doc.name,
+          colonne: ['Dare', 'Avere', 'Saldo'],
+          righe: [[saldo.dare, saldo.avere, saldo.saldo]],
+          totale: { etichetta: 'Saldo al termine del trimestre', valore: saldo.saldo },
+        });
+        saldoMastrino = saldo.saldo;
+      }
     }
 
-    let saldo = null;
-    try {
-      saldo = parseMastrinoConto(await extractPagesText(await download(doc.id)));
-    } catch { /* gestito sotto */ }
-
-    if (!saldo) {
-      base.note.push('Saldo non leggibile: nessuna riga "Totali" riconosciuta nel mastrino.');
-      out.push(base);
-      continue;
+    // 2. Estratto conto (fonte ESTERNA: la banca). Quando c'è ed è utilizzabile è il
+    //    riscontro principale — il mastrino è pur sempre la contabilità stessa, l'estratto
+    //    no — e il mastrino resta come confronto di supporto.
+    const estratto = estratti.get(codice);
+    const saldoBanca = estratto ? saldoEstratto({ base, estratto, dataChiusura }) : null;
+    if (!estratto) {
+      base.note.push(ciSonoEstratti
+        ? `Nessun estratto conto abbinato al conto ${codice}.`
+        : 'Estratto conto bancario non caricato: il saldo è riscontrato solo con la contabilità (mastrino), non con la banca.');
     }
 
-    base.prove.push({
-      titolo: 'Saldo finale del mastrino',
-      documento: doc.name,
-      colonne: ['Dare', 'Avere', 'Saldo'],
-      righe: [[saldo.dare, saldo.avere, saldo.saldo]],
-      totale: { etichetta: 'Saldo al termine del trimestre', valore: saldo.saldo },
-    });
-    base.valore_riscontrato = saldo.saldo;
-    Object.assign(base, calcolaEsito(valoreBilancio, saldo.saldo));
+    if (saldoBanca != null) {
+      base.valore_riscontrato = saldoBanca;
+      Object.assign(base, calcolaEsito(valoreBilancio, saldoBanca));
+      if (saldoMastrino != null) {
+        base.confronti.push({
+          etichetta: 'Bilancio ↔ mastrino del conto',
+          etichetta_riscontrato: 'Mastrino',
+          bilancio: valoreBilancio,
+          riscontrato: saldoMastrino,
+          ...calcolaEsito(valoreBilancio, saldoMastrino),
+        });
+      }
+      if (base.esito === 'scostamento') {
+        base.note.push('Il saldo della banca differisce dal bilancio: richiedere alla società il prospetto di riconciliazione bancaria (assegni emessi non incassati, bonifici in transito, addebiti non ancora registrati).');
+      }
+    } else if (saldoMastrino != null) {
+      base.valore_riscontrato = saldoMastrino;
+      Object.assign(base, calcolaEsito(valoreBilancio, saldoMastrino));
+    }
     out.push(base);
+  }
+
+  // Estratti caricati ma non attribuibili a nessun conto: vanno segnalati, altrimenti il
+  // revisore crederebbe di averli fatti riscontrare.
+  if (nonAbbinati.length) {
+    out.push({
+      voce: 'Estratti conto bancari non abbinati',
+      codice: '3401-EC',
+      valore_bilancio: null,
+      valore_riscontrato: null,
+      esito: 'non_verificabile',
+      scostamento: null,
+      composizione: [],
+      prove: [],
+      confronti: [],
+      note: nonAbbinati.map(({ doc, motivo }) => `«${doc.name}»: ${motivo}.`),
+    });
   }
   return out;
 }
@@ -654,7 +860,161 @@ async function costruisciRiscontri(analysis, docs, download, quarter) {
     mastrinoDoc: d.mastriniFornitori, tipo: 'fornitori', download,
   }));
 
-  riscontri.push(...await riscontriBanche({ voci, docs, download }));
+  riscontri.push(...await riscontriBanche({
+    voci, docs, download, dataChiusura: analysis.meta?.data_bilancio ?? null,
+  }));
+
+  return riscontri;
+}
+
+/**
+ * Riscontro IVA ANNUALE: somma il registro (e la LIPE) di più trimestri invece di uno
+ * solo. Stesso principio della revisione trimestrale — leggere, sommare, confrontare —
+ * solo con 4 fonti invece di una. Se manca il registro di un trimestre, quella parte
+ * dell'anno resta non sommata e lo si dichiara in una nota: niente stime.
+ */
+async function riscontroIVAAnnuale({ voci, codice, voceLabel, registriPerTrimestre, lipePerTrimestre,
+  campoLipe, descrizioneRegistro, descrizioneLipe, download }) {
+  const valoreBilancio = sumByCode(voci, codice);
+  const base = {
+    voce: voceLabel,
+    codice,
+    valore_bilancio: valoreBilancio,
+    valore_riscontrato: null,
+    esito: 'non_verificabile',
+    scostamento: null,
+    composizione: composizioneVoce(voci, codice.slice(0, 4)),
+    prove: [],
+    confronti: [],
+    note: [],
+  };
+
+  const perTrimestre = [];
+  for (const trimestre of [1, 2, 3, 4]) {
+    const doc = registriPerTrimestre[trimestre];
+    if (!doc) {
+      base.note.push(`Registro IVA del ${trimestre}° trimestre non caricato: il totale annuale è parziale.`);
+      continue;
+    }
+    try {
+      const registro = parseRegistroIVA(await extractPagesText(await download(doc.id)));
+      if (!registro?.periodi.length) {
+        base.note.push(`Nessuna riga "TOTALI" riconosciuta nel registro IVA del ${trimestre}° trimestre.`);
+        continue;
+      }
+      perTrimestre.push({ trimestre, doc, registro });
+    } catch (err) {
+      base.note.push(`Registro IVA del ${trimestre}° trimestre illeggibile (${err.message}).`);
+    }
+  }
+
+  if (!perTrimestre.length) return base;
+
+  const totaleAnnuale = +perTrimestre.reduce((s, t) => s + t.registro.totaleImposta, 0).toFixed(2);
+
+  base.prove.push({
+    titolo: descrizioneRegistro,
+    documento: perTrimestre.map((t) => `${t.doc.name} (${t.trimestre}° trim.)`).join('; '),
+    colonne: ['Trimestre', 'Documento', 'Imposta'],
+    righe: perTrimestre.map((t) => [`${t.trimestre}° trimestre`, t.doc.name, t.registro.totaleImposta]),
+    totale: { etichetta: 'Somma delle imposte (anno)', valore: totaleAnnuale },
+  });
+
+  // Seconda fonte indipendente, sommata sugli stessi trimestri: se anche solo un
+  // trimestre manca la LIPE annuale non è comparabile e viene scartata.
+  const lipePerTrim = [];
+  for (const { trimestre } of perTrimestre) {
+    const doc = lipePerTrimestre[trimestre];
+    if (!doc) continue;
+    try {
+      const lipe = parseLIPE(await extractPagesText(await download(doc.id)));
+      const valore = lipe ? lipe[campoLipe] : null;
+      if (valore != null) lipePerTrim.push({ trimestre, doc, valore });
+    } catch { /* la LIPE è un di più: se non si legge, il registro basta */ }
+  }
+
+  if (lipePerTrim.length === perTrimestre.length) {
+    const totaleLipe = +lipePerTrim.reduce((s, t) => s + t.valore, 0).toFixed(2);
+    const lipeAttendibile = Math.abs(totaleLipe - totaleAnnuale) < Math.max(200, totaleAnnuale * 0.02);
+    if (lipeAttendibile) {
+      base.prove.push({
+        titolo: descrizioneLipe,
+        documento: lipePerTrim.map((t) => `${t.doc.name} (${t.trimestre}° trim.)`).join('; '),
+        colonne: ['Trimestre', 'Documento', campoLipe === 'totaleEsigibile' ? 'IVA esigibile (VP4)' : 'IVA detratta (VP5)'],
+        righe: lipePerTrim.map((t) => [`${t.trimestre}° trimestre`, t.doc.name, t.valore]),
+        totale: { etichetta: 'Somma (anno)', valore: totaleLipe },
+      });
+      base.note.push(
+        Math.abs(totaleLipe - totaleAnnuale) < 0.01
+          ? 'Le due fonti indipendenti (registri IVA e LIPE, sommati sui trimestri disponibili) coincidono al centesimo.'
+          : `Registri e LIPE (sommati sui trimestri disponibili) differiscono di ${Math.abs(totaleLipe - totaleAnnuale).toFixed(2)} € (rettifiche di esigibilità).`
+      );
+    } else {
+      base.note.push('Le LIPE trimestrali non sono state usate: la somma non concorda con i registri.');
+    }
+  }
+
+  base.valore_riscontrato = totaleAnnuale;
+  Object.assign(base, calcolaEsito(valoreBilancio, totaleAnnuale));
+  return base;
+}
+
+/**
+ * Costruisce i riscontri della revisione ANNUALE (4° trimestre): stessa logica della
+ * revisione trimestrale, ma le voci IVA sommano i registri/LIPE dei 4 trimestri, mentre
+ * partitari e banche usano i documenti del 4° trimestre — che nella pratica osservata
+ * sono già cumulativi da inizio anno (i mastrini caricati nei trimestri successivi al
+ * primo si dichiarano "cumulativi 01/01-31/12"), quindi non richiedono somma.
+ *
+ * `docsPerQuarter` = { 1: [...], 2: [...], 3: [...], 4: [...] } — documenti di ciascun
+ * trimestre dello stesso incarico, già recuperati dal chiamante.
+ */
+async function costruisciRiscontriAnnuali(analysis, docsPerQuarter, download) {
+  const voci = analysis.voci ?? [];
+  const docsQ4 = docsPerQuarter[4] ?? [];
+  const d4 = selectDocumenti(docsQ4);
+
+  const registriAcquisto = {};
+  const registriVendita = {};
+  const lipeDocs = {};
+  for (const q of [1, 2, 3, 4]) {
+    const dq = selectDocumenti(docsPerQuarter[q] ?? []);
+    registriAcquisto[q] = dq.registroAcquisto;
+    registriVendita[q] = dq.registroVendita;
+    lipeDocs[q] = dq.lipe;
+  }
+
+  const riscontri = [];
+
+  riscontri.push(await riscontroIVAAnnuale({
+    voci, codice: '2811017', voceLabel: 'IVA a credito (Erario c/IVA acquisti)',
+    registriPerTrimestre: registriAcquisto, lipePerTrimestre: lipeDocs, campoLipe: 'totaleDetratta',
+    descrizioneRegistro: 'Registri fatture di acquisto — somma delle imposte dei 4 trimestri',
+    descrizioneLipe: 'LIPE — IVA detratta (rigo VP5), somma dei trimestri disponibili',
+    download,
+  }));
+
+  riscontri.push(await riscontroIVAAnnuale({
+    voci, codice: '4923013', voceLabel: 'IVA a debito (Erario c/IVA vendite)',
+    registriPerTrimestre: registriVendita, lipePerTrimestre: lipeDocs, campoLipe: 'totaleEsigibile',
+    descrizioneRegistro: 'Registri fatture di vendita — somma delle imposte dei 4 trimestri',
+    descrizioneLipe: 'LIPE — IVA esigibile (rigo VP4), somma dei trimestri disponibili',
+    download,
+  }));
+
+  riscontri.push(...await riscontriPartitario({
+    voci, mastro: '28', contoPrincipale: '2801001',
+    mastrinoDoc: d4.mastriniClienti, tipo: 'clienti', download,
+  }));
+
+  riscontri.push(...await riscontriPartitario({
+    voci, mastro: '49', contoPrincipale: '4913001',
+    mastrinoDoc: d4.mastriniFornitori, tipo: 'fornitori', download,
+  }));
+
+  riscontri.push(...await riscontriBanche({
+    voci, docs: docsQ4, download, dataChiusura: analysis.meta?.data_bilancio ?? null,
+  }));
 
   return riscontri;
 }
@@ -669,8 +1029,10 @@ module.exports = {
   parseLIPE,
   parseMastrinoConto,
   parseMastrinoPartitario,
+  parseEstrattoConto,
   selectDocumenti,
   selectBankMastrini,
   costruisciRiscontri,
+  costruisciRiscontriAnnuali,
   extractPagesText,
 };
