@@ -57,8 +57,21 @@ interface Indicatore {
   nota: string | null;
 }
 
+/** Indice di sintesi (ROS, ROI, ROE, oneri finanziari / ricavi) mostrato in evidenza. */
+interface Indice {
+  sigla: string;
+  nome: string;
+  formula: string;
+  valore: number | null;
+  formato: "percento";
+  stato: StatoSalute;
+  soglie: string;
+}
+
 interface Salute {
   complessivo: StatoSalute;
+  /** Assente nei report calcolati prima dell'introduzione degli indici: serve un ricalcolo. */
+  indici?: Indice[];
   indicatori: Indicatore[];
   avvertenza: string;
   giudizio_ai: string | null;
@@ -357,6 +370,31 @@ function NotaRevisore<N extends { id: string; nota: string | null; esito: EsitoN
   );
 }
 
+/** I quattro indici di sintesi, in testa alla sezione: la lettura immediata della salute. */
+function IndiciSintesi({ indici }: { indici: Indice[] }) {
+  return (
+    <div className="grid grid-cols-2 gap-px border-b border-gray-200 bg-gray-200 sm:grid-cols-4">
+      {indici.map((ind) => {
+        const s = SALUTE[ind.stato] ?? SALUTE.non_determinabile;
+        return (
+          <div key={ind.sigla} className="flex flex-col bg-white px-4 py-3" title={ind.soglie}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-bold tracking-wide text-gray-700">{ind.sigla}</span>
+              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${s.badge}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />{s.label}
+              </span>
+            </div>
+            <div className="mt-1.5 text-2xl font-bold tabular-nums text-gray-900">{misura(ind)}</div>
+            <div className="text-xs font-medium text-gray-600">{ind.nome}</div>
+            <div className="mt-0.5 text-[11px] leading-snug text-gray-400">{ind.formula}</div>
+            <div className={`mt-2 h-1 w-full rounded-full ${s.bar}`} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function SezioneSalute({
   salute,
   quarterId,
@@ -376,13 +414,21 @@ function SezioneSalute({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-5 py-4">
         <div>
           <h2 className="text-sm font-semibold text-gray-900">Salute dell&apos;azienda</h2>
-          <p className="mt-0.5 text-xs text-gray-500">Redditività, equilibrio commerciale e struttura finanziaria del trimestre</p>
+          <p className="mt-0.5 text-xs text-gray-500">Indici di sintesi, redditività, equilibrio commerciale e struttura finanziaria del trimestre</p>
         </div>
         <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ring-1 ring-inset ${c.badge}`}>
           <span className={`h-2 w-2 rounded-full ${c.dot}`} />
           {c.label}
         </span>
       </div>
+
+      {salute.indici && salute.indici.length > 0 ? (
+        <IndiciSintesi indici={salute.indici} />
+      ) : (
+        <div className="border-b border-gray-100 bg-amber-50 px-5 py-2.5 text-xs text-amber-800 print:hidden">
+          Revisione calcolata prima dell&apos;introduzione di ROI, ROE e oneri finanziari / ricavi: premi «Ricalcola» per vederli.
+        </div>
+      )}
 
       {salute.giudizio_ai && (
         <div className="border-b border-gray-100 bg-brand-50/40 px-5 py-3">

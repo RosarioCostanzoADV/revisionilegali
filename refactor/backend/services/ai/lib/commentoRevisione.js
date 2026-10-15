@@ -13,7 +13,7 @@
 
 const { GoogleGenerativeAI, SchemaType } = require('@google/generative-ai');
 
-const PROMPT = `Sei un revisore legale italiano esperto. Ti vengono forniti i RISULTATI GIÀ CALCOLATI di una revisione trimestrale: la riconciliazione fra il bilancio e la documentazione a corredo, e un insieme di INDICATORI DI SALUTE (redditività, equilibrio commerciale, struttura finanziaria). Tutti i calcoli sono deterministici e corretti: NON metterli in discussione e NON rifarli.
+const PROMPT = `Sei un revisore legale italiano esperto. Ti vengono forniti i RISULTATI GIÀ CALCOLATI di una revisione trimestrale: la riconciliazione fra il bilancio e la documentazione a corredo, e un insieme di INDICATORI DI SALUTE (redditività, equilibrio commerciale, struttura finanziaria) con gli INDICI DI SINTESI ROS, ROI, ROE e oneri finanziari / ricavi. Tutti i calcoli sono deterministici e corretti: NON metterli in discussione e NON rifarli.
 
 Il tuo compito è solo interpretativo:
 - Per ogni voce riscontrata, scrivi un commento di 1-2 frasi rivolto al revisore: cosa significa l'esito, quanto è grave, cosa conviene fare o chiedere alla società.
@@ -23,7 +23,7 @@ Il tuo compito è solo interpretativo:
 
 Fornisci una "sintesi" di 2-4 frasi sullo stato complessivo della revisione (cosa quadra, cosa no, il rilievo più urgente).
 
-Fornisci infine un "giudizio_salute" di 3-5 frasi sulla salute economico-finanziaria dell'azienda, basato SOLO sugli indicatori forniti e sul loro stato già calcolato. Ricorda che è la fotografia di un solo trimestre: non parlare di tendenze o andamenti. Collega, dove pertinente, la salute ai rilievi della riconciliazione (es. un'IVA a debito sottostimata pesa sui debiti reali). Tono professionale e asciutto, in italiano, senza formule di cortesia.
+Fornisci infine un "giudizio_salute" di 3-5 frasi sulla salute economico-finanziaria dell'azienda, basato SOLO sugli indicatori e sugli indici forniti e sul loro stato già calcolato; cita ROI, ROE e la sostenibilità degli oneri finanziari quando sono valorizzati. Ricorda che è la fotografia di un solo trimestre: non parlare di tendenze o andamenti. Collega, dove pertinente, la salute ai rilievi della riconciliazione (es. un'IVA a debito sottostimata pesa sui debiti reali). Tono professionale e asciutto, in italiano, senza formule di cortesia.
 
 DATI:
 DATI_PLACEHOLDER`;

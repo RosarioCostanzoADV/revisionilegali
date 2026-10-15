@@ -39,8 +39,18 @@ interface Indicatore {
   nota: string | null;
 }
 
+interface Indice {
+  sigla: string;
+  nome: string;
+  formula: string;
+  valore: number | null;
+  formato: "percento";
+  stato: StatoSalute;
+}
+
 interface Salute {
   complessivo: StatoSalute;
+  indici?: Indice[];
   indicatori: Indicatore[];
   avvertenza: string;
   giudizio_ai: string | null;
@@ -127,7 +137,7 @@ const eur = (n: number | null | undefined) =>
     ? n.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : "—";
 
-const misuraFmt = (m: Misura) => {
+const misuraFmt = (m: Pick<Misura, "valore" | "formato">) => {
   if (m.valore == null) return "—";
   if (m.formato === "percento") return `${m.valore.toLocaleString("it-IT", { maximumFractionDigits: 1 })}%`;
   if (m.formato === "volte") return `${m.valore.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}×`;
@@ -415,6 +425,31 @@ export function CartaLavoroContent({
             trimestre. Giudizio complessivo:{" "}
             <strong>{STATO_LABEL[salute.complessivo]}</strong>.
           </p>
+
+          {salute.indici && salute.indici.length > 0 && (
+            <div className="mb-5">
+              <table className="cdl-table">
+                <thead>
+                  <tr>
+                    <th>Indice di sintesi</th>
+                    <th>Formula</th>
+                    <th>Valore</th>
+                    <th>Esito</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {salute.indici.map((ind) => (
+                    <tr key={ind.sigla}>
+                      <td><strong>{ind.sigla}</strong> — {ind.nome}</td>
+                      <td>{ind.formula}</td>
+                      <td>{misuraFmt(ind)}</td>
+                      <td>{STATO_LABEL[ind.stato]}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {salute.indicatori.map((ind, i) => {
             const notaRevisore = saluteNote[ind.dimensione];

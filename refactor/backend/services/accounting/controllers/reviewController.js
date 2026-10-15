@@ -94,6 +94,50 @@ async function verificaBilancioAnnualeAI(analysis, pages) {
   return data; // { annuale, motivazione }
 }
 
+/** Mese (1-12) di una data ISO aaaa-mm-gg: i mesi coperti da un CE progressivo da inizio anno. */
+function meseDi(iso) {
+  const m = /^\d{4}-(\d{2})-/.exec(iso ?? '');
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/**
+ * Aggregati per ROI, ROE e oneri finanziari / ricavi, letti dal piano dei conti del
+ * gestionale. Somma le sole FOGLIE (i sottoconti) per non contare due volte mastri e conti.
+ *   - Reddito operativo (A − B): ricavi meno costi della gestione caratteristica, cioè le
+ *     voci CE con sezione ricavi/costi (mastri 60-71 / 73-92); restano fuori i mastri 93
+ *     (finanziari), 95 (straordinari) e 96 (imposte), che non hanno sezione.
+ *   - Oneri finanziari: conto 9315 (interessi e altri oneri finanziari, C.17).
+ *   - Capitale investito netto: totale attività al netto dei fondi ammortamento (mastri 07
+ *     e 16), che il gestionale espone fra le passività.
+ *   - Patrimonio netto: mastro 40 più il risultato del periodo (non ancora girato a riserva).
+ */
+function indiciDaBilancio(V, sp, ce, mesiPeriodo) {
+  const foglieCE = V.filter((v) => v.prospetto === 'CE' && v.foglia);
+  const somma = (voci) => +voci.reduce((s, v) => s + (v.importo || 0), 0).toFixed(2);
+  const cePresente = foglieCE.length > 0;
+
+  const redditoOperativo = cePresente
+    ? somma(foglieCE.filter((v) => v.sezione === 'CE_RICAVI')) - somma(foglieCE.filter((v) => v.sezione === 'CE_COSTI'))
+    : null;
+  const oneriFinanziari = cePresente ? somma(foglieCE.filter((v) => String(v.codice).startsWith('9315'))) : null;
+  const ricaviVendite = cePresente ? somma(foglieCE.filter((v) => String(v.codice).startsWith('60'))) : null;
+
+  const fondiAmmortamento = sumByCode(V, '07') + sumByCode(V, '16');
+  const capitaleInvestito = sp.totale_attivita != null ? sp.totale_attivita - fondiAmmortamento : null;
+  const risultato = sp.risultato_esercizio ?? ce.risultato_esercizio ?? 0;
+  const haPN = V.some((v) => v.prospetto === 'SP' && String(v.codice).startsWith('40'));
+  const patrimonioNetto = haPN ? sumByCode(V, '40') + risultato : null;
+
+  return {
+    ricavi_vendite: ricaviVendite,
+    reddito_operativo: redditoOperativo == null ? null : +redditoOperativo.toFixed(2),
+    oneri_finanziari: oneriFinanziari,
+    capitale_investito: capitaleInvestito == null ? null : +capitaleInvestito.toFixed(2),
+    patrimonio_netto: patrimonioNetto == null ? null : +patrimonioNetto.toFixed(2),
+    mesi_periodo: mesiPeriodo,
+  };
+}
+
 /** Errore con status HTTP esplicito, per distinguere i fallimenti attesi (400/502) da bug (500). */
 class ReviewError extends Error {
   constructor(status, message) {
@@ -260,6 +304,7 @@ async function computeReview(quarterId, token) {
     debiti_fornitori: bilancioDi('4913001') + bilancioDi('4913510'), // fornitori + terzi
     disponibilita_liquide: sumByCode(V, '3401') + sumByCode(V, '3405'), // banche + cassa
     debiti_banche: sumByCode(V, '4907'),                           // mutui e finanziamenti
+    ...indiciDaBilancio(V, sp, ce, isAnnuale ? 12 : meseDi(analysis.meta?.data_bilancio_iso)),
   });
 
   // 5. Commento AI sui riscontri e sulla salute già calcolati (mai sui numeri)
